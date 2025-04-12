@@ -57,11 +57,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
               
             if (data && !error) {
+              // Ensure role is of type UserRole by validating it
+              const role = validateUserRole(data.role);
+              
               setUser({
                 id: data.id,
                 name: data.name,
                 email: currentSession.user.email || '',
-                role: data.role,
+                role,
                 verified: data.verified,
                 profileImage: data.profile_image,
               });
@@ -90,11 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single()
           .then(({ data, error }) => {
             if (data && !error) {
+              // Ensure role is of type UserRole by validating it
+              const role = validateUserRole(data.role);
+              
               setUser({
                 id: data.id,
                 name: data.name,
                 email: initialSession.user.email || '',
-                role: data.role,
+                role,
                 verified: data.verified,
                 profileImage: data.profile_image,
               });
@@ -107,6 +113,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       }
     });
+
+    // Helper function to validate that a role value is of type UserRole
+    function validateUserRole(role: string): UserRole {
+      if (role === 'voter' || role === 'admin') {
+        return role;
+      }
+      console.warn(`Invalid role value "${role}" found, defaulting to null`);
+      return null;
+    }
 
     return () => {
       subscription.unsubscribe();
