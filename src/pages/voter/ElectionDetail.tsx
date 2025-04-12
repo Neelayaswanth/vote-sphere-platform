@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useElection, Candidate } from '@/contexts/ElectionContext';
@@ -54,6 +53,7 @@ import {
   Check, 
   Clock, 
   Info, 
+  Loader,
   Lock, 
   Users 
 } from 'lucide-react';
@@ -73,10 +73,8 @@ export default function ElectionDetail() {
   const [isReadingGuidelines, setIsReadingGuidelines] = useState(true);
   const [hasUserVoted, setHasUserVoted] = useState(false);
   
-  // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
   
-  // Check if user has already voted
   useEffect(() => {
     if (id) {
       const userVote = getUserVoteForElection(id);
@@ -84,7 +82,6 @@ export default function ElectionDetail() {
     }
   }, [id, getUserVoteForElection]);
   
-  // Refresh election data (needed after voting)
   useEffect(() => {
     if (id) {
       const currentElection = getElection(id);
@@ -92,7 +89,6 @@ export default function ElectionDetail() {
     }
   }, [id, getElection]);
   
-  // Timer for the "Vote Now" button
   useEffect(() => {
     if (!isReadingGuidelines || hasUserVoted || election?.status !== 'active') {
       return;
@@ -125,13 +121,11 @@ export default function ElectionDetail() {
     );
   }
   
-  // Format candidates data for charts
   const candidateChartData = election.candidates.map(candidate => ({
     name: candidate.name,
     votes: candidate.votes,
   }));
   
-  // Determine total percentage of votes
   const totalVotes = election.totalVotes;
   const getVotePercentage = (votes: number) => {
     if (totalVotes === 0) return 0;
@@ -153,10 +147,8 @@ export default function ElectionDetail() {
     try {
       await castVote(id, selectedCandidate.id);
       
-      // Update local state
       setHasUserVoted(true);
       
-      // Show success toast
       toast({
         title: "Vote Submitted Successfully",
         description: `Your vote for ${selectedCandidate.name} has been recorded.`,
@@ -243,10 +235,8 @@ export default function ElectionDetail() {
         </div>
       </div>
       
-      {/* Status Alert */}
       <div>{renderElectionStatus()}</div>
       
-      {/* Election Info */}
       <Card>
         <CardHeader>
           <CardTitle>Election Information</CardTitle>
@@ -298,7 +288,6 @@ export default function ElectionDetail() {
         </CardContent>
       </Card>
       
-      {/* Guidelines (only show if active and user hasn't voted) */}
       {election.status === 'active' && !hasUserVoted && isReadingGuidelines && (
         <Card className="border-primary/50">
           <CardHeader className="bg-primary/5">
@@ -368,7 +357,6 @@ export default function ElectionDetail() {
         </Card>
       )}
       
-      {/* Candidates */}
       <div>
         <h2 className="text-2xl font-bold mb-4">
           {election.status === 'completed' ? 'Results' : 'Candidates'}
@@ -385,7 +373,6 @@ export default function ElectionDetail() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-2">
-                  {/* Bar Chart */}
                   <div>
                     <h3 className="text-lg font-medium mb-2">Vote Distribution</h3>
                     <div className="h-[300px]">
@@ -400,7 +387,6 @@ export default function ElectionDetail() {
                     </div>
                   </div>
                   
-                  {/* Pie Chart */}
                   <div>
                     <h3 className="text-lg font-medium mb-2">Vote Percentage</h3>
                     <div className="h-[300px]">
@@ -501,7 +487,6 @@ export default function ElectionDetail() {
         </div>
       </div>
       
-      {/* Election platform/manifesto details */}
       <Card>
         <CardHeader>
           <CardTitle>Candidate Manifestos</CardTitle>
@@ -552,7 +537,6 @@ export default function ElectionDetail() {
         </CardContent>
       </Card>
       
-      {/* Voting confirmation dialog */}
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -575,7 +559,7 @@ export default function ElectionDetail() {
             >
               {isVoting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
                   Submitting...
                 </>
               ) : (

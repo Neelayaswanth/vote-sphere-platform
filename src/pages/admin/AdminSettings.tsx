@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   Card, 
@@ -64,10 +63,10 @@ import {
   ShieldAlert, 
   User, 
   UserPlus, 
-  Users 
+  Users,
+  VoteIcon 
 } from 'lucide-react';
 
-// Mock data for admin accounts
 const adminAccountsMock = [
   {
     id: '1',
@@ -101,7 +100,6 @@ const adminAccountsMock = [
 export default function AdminSettings() {
   const { toast } = useToast();
   
-  // Platform settings state
   const [platformSettings, setPlatformSettings] = useState({
     voteTimeout: 10,
     emailNotifications: true,
@@ -114,22 +112,18 @@ export default function AdminSettings() {
     autoLogout: true,
   });
   
-  // New admin form state
   const [newAdmin, setNewAdmin] = useState({
     name: '',
     email: '',
     role: 'Voter Admin',
   });
   
-  // Loading states
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   
-  // Admin removal dialog state
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [adminToRemove, setAdminToRemove] = useState<{id: string, name: string} | null>(null);
   
-  // Handle platform settings change
   const handleSettingChange = (setting: string, value: any) => {
     setPlatformSettings(prev => ({
       ...prev,
@@ -137,12 +131,10 @@ export default function AdminSettings() {
     }));
   };
   
-  // Handle saving platform settings
   const handleSaveSettings = async () => {
     setIsUpdatingSettings(true);
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
@@ -160,7 +152,6 @@ export default function AdminSettings() {
     }
   };
   
-  // Handle new admin input change
   const handleNewAdminChange = (field: string, value: string) => {
     setNewAdmin(prev => ({
       ...prev,
@@ -168,13 +159,11 @@ export default function AdminSettings() {
     }));
   };
   
-  // Handle adding new admin
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingAdmin(true);
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
@@ -182,7 +171,6 @@ export default function AdminSettings() {
         description: `${newAdmin.name} has been added as ${newAdmin.role}.`,
       });
       
-      // Reset form
       setNewAdmin({
         name: '',
         email: '',
@@ -199,12 +187,10 @@ export default function AdminSettings() {
     }
   };
   
-  // Handle removing admin
   const handleRemoveAdmin = async () => {
     if (!adminToRemove) return;
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
@@ -239,7 +225,6 @@ export default function AdminSettings() {
           <TabsTrigger value="security">Security & Logs</TabsTrigger>
         </TabsList>
         
-        {/* Platform Settings Tab */}
         <TabsContent value="platform" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
@@ -521,7 +506,6 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
         
-        {/* Admin Accounts Tab */}
         <TabsContent value="admins" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
@@ -574,7 +558,7 @@ export default function AdminSettings() {
                               });
                               setRemoveDialogOpen(true);
                             }}
-                            disabled={admin.id === '1'} // Prevent removing super admin
+                            disabled={admin.id === '1'}
                             className={admin.id === '1' ? 'opacity-50 cursor-not-allowed' : ''}
                           >
                             Remove
@@ -666,7 +650,6 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
         
-        {/* Security & Logs Tab */}
         <TabsContent value="security" className="space-y-6 mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
@@ -768,7 +751,7 @@ export default function AdminSettings() {
                 
                 <div>
                   <h3 className="text-sm font-medium mb-1 flex items-center">
-                    <Vote className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <VoteIcon className="h-4 w-4 mr-2 text-muted-foreground" />
                     Elections
                   </h3>
                   <p className="text-sm text-muted-foreground">Active: 1, Upcoming: 1, Completed: 1</p>
@@ -904,7 +887,6 @@ export default function AdminSettings() {
         </TabsContent>
       </Tabs>
       
-      {/* Remove Admin Confirmation Dialog */}
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
