@@ -1,49 +1,27 @@
-
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const checkAuth = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        
-        if (data.session) {
-          // Fetch user profile to determine role
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.session.user.id)
-            .single();
-            
-          if (error) {
-            console.error('Error fetching profile:', error);
-            navigate("/auth");
-            return;
-          }
-            
-          if (profileData && profileData.role === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate('/voter');
-          }
-        } else {
-          // Redirect to auth page if not authenticated
-          navigate("/auth");
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        navigate("/auth");
-      }
-    };
-    
-    checkAuth();
-  }, [navigate]);
+    if (isLoading) return;
+
+    if (!user) {
+      // If no user is authenticated, redirect to auth page
+      navigate("/auth");
+    } else if (user.role === 'admin') {
+      // If user is admin, redirect to admin dashboard
+      navigate('/admin');
+    } else {
+      // Otherwise, redirect to voter dashboard
+      navigate('/voter');
+    }
+  }, [user, isLoading, navigate]);
 
   return (
     <div className="min-h-screen flex justify-center items-center">

@@ -20,8 +20,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
-  logout: () => void;
-  updateUser: (userData: Partial<AppUser>) => void;
+  logout: () => Promise<void>;
+  updateUser: (userData: Partial<AppUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +34,15 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
+// Helper function to validate that a role value is of type UserRole
+function validateUserRole(role: string): UserRole {
+  if (role === 'voter' || role === 'admin') {
+    return role as UserRole;
+  }
+  console.warn(`Invalid role value "${role}" found, defaulting to null`);
+  return null;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -45,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         
         if (currentSession?.user) {
@@ -69,25 +79,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 profileImage: data.profile_image,
               };
               
+              console.log("User profile fetched:", userData);
+              
               // Store user in localStorage for other contexts
               localStorage.setItem('user', JSON.stringify(userData));
               
               setUser(userData);
             } else {
               console.error('Error fetching user profile:', error);
+              setUser(null);
             }
+            setIsLoading(false);
           }, 0);
         } else {
           localStorage.removeItem('user');
           setUser(null);
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log("Initial session check:", initialSession?.user?.id);
       if (initialSession?.user) {
         setSession(initialSession);
         
@@ -111,12 +125,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 profileImage: data.profile_image,
               };
               
+              console.log("Initial user profile:", userData);
+              
               // Store user in localStorage for other contexts
               localStorage.setItem('user', JSON.stringify(userData));
               
               setUser(userData);
             } else {
-              console.error('Error fetching user profile:', error);
+              console.error('Error fetching initial user profile:', error);
+              setUser(null);
             }
             setIsLoading(false);
           });
@@ -125,15 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       }
     });
-
-    // Helper function to validate that a role value is of type UserRole
-    function validateUserRole(role: string): UserRole {
-      if (role === 'voter' || role === 'admin') {
-        return role;
-      }
-      console.warn(`Invalid role value "${role}" found, defaulting to null`);
-      return null;
-    }
 
     return () => {
       subscription.unsubscribe();
@@ -144,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
+      console.log("Attempting login for:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -158,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Welcome back!",
       });
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -173,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
+      console.log("Attempting signup for:", email, "with role:", role);
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -193,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Your account has been created successfully. Please check your email for verification.",
       });
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Signup failed",
         description: error.message,
@@ -216,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "You have been logged out successfully.",
       });
     } catch (error: any) {
+      console.error("Logout error:", error);
       toast({
         title: "Logout failed",
         description: error.message,

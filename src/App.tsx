@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import RootLayout from "./components/layout/RootLayout";
 import VoterLayout from "./components/layout/VoterLayout";
 import AdminLayout from "./components/layout/AdminLayout";
@@ -13,6 +13,7 @@ import { VoterProvider } from "./contexts/VoterContext";
 
 // Auth page
 import Auth from "./pages/auth/Auth";
+import Index from "./pages/Index";
 
 // Voter pages
 import VoterDashboard from "./pages/voter/VoterDashboard";
@@ -45,10 +46,10 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route element={<RootLayout />}>
-                  <Route path="/" element={<Auth />} />
+                  <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
                   
-                  {/* Voter Routes */}
+                  {/* Voter Routes - Protected */}
                   <Route path="/voter" element={<VoterLayout />}>
                     <Route index element={<VoterDashboard />} />
                     <Route path="profile" element={<VoterProfile />} />
@@ -58,7 +59,7 @@ const App = () => (
                     <Route path="settings" element={<VoterSettings />} />
                   </Route>
                   
-                  {/* Admin Routes */}
+                  {/* Admin Routes - Protected */}
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminDashboard />} />
                     <Route path="voters" element={<VoterManagement />} />
@@ -66,10 +67,10 @@ const App = () => (
                     <Route path="activity-logs" element={<ActivityLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
                   </Route>
+                  
+                  {/* Catch-all route for 404 */}
+                  <Route path="*" element={<NotFound />} />
                 </Route>
-                
-                {/* Catch-all route for 404 */}
-                <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>

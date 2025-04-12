@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import { DarkModeToggle } from '@/components/layout/DarkModeToggle';
 import { Loader2, Mail, Lock, User, ChevronRight, Vote } from 'lucide-react';
 
 export default function Auth() {
-  const { login, signup, isLoading } = useAuth();
+  const { login, signup, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('login');
   
@@ -42,14 +42,26 @@ export default function Auth() {
   const [signupRole, setSignupRole] = useState<'voter' | 'admin'>('voter');
   const [signupError, setSignupError] = useState('');
 
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/voter');
+      }
+    }
+  }, [user, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     
     try {
       await login(loginEmail, loginPassword);
-      // Navigation is handled in RootLayout based on user role
+      // Navigation is handled by the useEffect above
     } catch (error: any) {
+      console.error('Login error:', error);
       setLoginError(error.message || 'Login failed. Please try again.');
     }
   };
@@ -65,8 +77,9 @@ export default function Auth() {
     
     try {
       await signup(signupName, signupEmail, signupPassword, signupRole);
-      // Navigation is handled in RootLayout based on user role
+      // Navigation is handled by the useEffect above
     } catch (error: any) {
+      console.error('Signup error:', error);
       setSignupError(error.message || 'Signup failed. Please try again.');
     }
   };
