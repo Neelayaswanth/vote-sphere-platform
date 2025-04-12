@@ -60,19 +60,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Ensure role is of type UserRole by validating it
               const role = validateUserRole(data.role);
               
-              setUser({
+              const userData = {
                 id: data.id,
                 name: data.name,
                 email: currentSession.user.email || '',
                 role,
                 verified: data.verified,
                 profileImage: data.profile_image,
-              });
+              };
+              
+              // Store user in localStorage for other contexts
+              localStorage.setItem('user', JSON.stringify(userData));
+              
+              setUser(userData);
             } else {
               console.error('Error fetching user profile:', error);
             }
           }, 0);
         } else {
+          localStorage.removeItem('user');
           setUser(null);
         }
         
@@ -96,20 +102,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Ensure role is of type UserRole by validating it
               const role = validateUserRole(data.role);
               
-              setUser({
+              const userData = {
                 id: data.id,
                 name: data.name,
                 email: initialSession.user.email || '',
                 role,
                 verified: data.verified,
                 profileImage: data.profile_image,
-              });
+              };
+              
+              // Store user in localStorage for other contexts
+              localStorage.setItem('user', JSON.stringify(userData));
+              
+              setUser(userData);
             } else {
               console.error('Error fetching user profile:', error);
             }
             setIsLoading(false);
           });
       } else {
+        localStorage.removeItem('user');
         setIsLoading(false);
       }
     });
@@ -195,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+      localStorage.removeItem('user');
       setUser(null);
       setSession(null);
       
@@ -229,7 +242,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Update local state
-      setUser(prev => prev ? { ...prev, ...userData } : null);
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      
+      // Update localStorage
+      localStorage.setItem('user', JSON.stringify(updatedUser));
       
       toast({
         title: "Profile updated",
