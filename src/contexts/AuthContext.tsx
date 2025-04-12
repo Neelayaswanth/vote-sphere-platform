@@ -13,10 +13,12 @@ interface AppUser {
   role: UserRole;
   verified: boolean;
   profileImage?: string;
+  status?: 'active' | 'blocked';
 }
 
 interface AuthContextType {
   user: AppUser | null;
+  session: Session | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
@@ -49,46 +51,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
+  // Fetch user profile function to avoid code duplication
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.warn('No profile found for user:', userId);
+        return null;
+      }
+      
+      // Ensure role is of type UserRole
+      const role = validateUserRole(data.role);
+      
+      return {
+        id: data.id,
+        name: data.name,
+        email: '', // Email is from auth, not profile
+        role,
+        verified: data.verified,
+        profileImage: data.profile_image,
+        status: data.status || 'active',
+      };
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+      return null;
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
+    console.log("Auth Provider initializing...");
+    setIsLoading(true);
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         
         if (currentSession?.user) {
-          // Fetch user profile from the profiles table
+          // Fetch user profile after a brief timeout
+          // This helps prevent recursion in Supabase client
           setTimeout(async () => {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentSession.user.id)
-              .single();
+            const userData = await fetchUserProfile(currentSession.user.id);
+            
+            if (userData) {
+              console.log("User profile fetched on auth change:", userData);
               
-            if (data && !error) {
-              // Ensure role is of type UserRole by validating it
-              const role = validateUserRole(data.role);
-              
-              const userData = {
-                id: data.id,
-                name: data.name,
+              // Include email from session
+              const fullUserData = {
+                ...userData,
                 email: currentSession.user.email || '',
-                role,
-                verified: data.verified,
-                profileImage: data.profile_image,
               };
               
-              console.log("User profile fetched:", userData);
-              
               // Store user in localStorage for other contexts
-              localStorage.setItem('user', JSON.stringify(userData));
+              localStorage.setItem('user', JSON.stringify(fullUserData));
               
-              setUser(userData);
+              setUser(fullUserData);
             } else {
-              console.error('Error fetching user profile:', error);
+              console.error('Error fetching user profile on auth change');
               setUser(null);
+              localStorage.removeItem('user');
             }
+            
             setIsLoading(false);
           }, 0);
         } else {
@@ -102,41 +137,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log("Initial session check:", initialSession?.user?.id);
+      
       if (initialSession?.user) {
         setSession(initialSession);
         
         // Fetch user profile
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', initialSession.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (data && !error) {
-              // Ensure role is of type UserRole by validating it
-              const role = validateUserRole(data.role);
-              
-              const userData = {
-                id: data.id,
-                name: data.name,
-                email: initialSession.user.email || '',
-                role,
-                verified: data.verified,
-                profileImage: data.profile_image,
-              };
-              
-              console.log("Initial user profile:", userData);
-              
-              // Store user in localStorage for other contexts
-              localStorage.setItem('user', JSON.stringify(userData));
-              
-              setUser(userData);
-            } else {
-              console.error('Error fetching initial user profile:', error);
-              setUser(null);
-            }
-            setIsLoading(false);
-          });
+        fetchUserProfile(initialSession.user.id).then(userData => {
+          if (userData) {
+            console.log("Initial user profile:", userData);
+            
+            // Include email from session
+            const fullUserData = {
+              ...userData,
+              email: initialSession.user.email || '',
+            };
+            
+            // Store user in localStorage for other contexts
+            localStorage.setItem('user', JSON.stringify(fullUserData));
+            
+            setUser(fullUserData);
+          } else {
+            console.error('Error fetching initial user profile');
+            setUser(null);
+            localStorage.removeItem('user');
+          }
+          
+          setIsLoading(false);
+        });
       } else {
         localStorage.removeItem('user');
         setIsLoading(false);
@@ -276,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
+    session,
     isLoading,
     login,
     signup,

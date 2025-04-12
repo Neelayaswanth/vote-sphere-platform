@@ -38,7 +38,7 @@ interface ElectionContextType {
   elections: Election[];
   userVotes: Vote[];
   getElection: (id: string) => Election | undefined;
-  createElection: (election: Omit<Election, 'id' | 'totalVotes' | 'status' | 'candidates'>) => Promise<void>;
+  createElection: (electionData: Omit<Election, 'id' | 'totalVotes' | 'status' | 'candidates'>) => Promise<void>;
   updateElection: (id: string, electionData: Partial<Election>) => Promise<void>;
   deleteElection: (id: string) => Promise<void>;
   castVote: (electionId: string, candidateId: string) => Promise<void>;
@@ -63,130 +63,177 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch elections and votes data
-  useEffect(() => {
-    const fetchElections = async () => {
-      setLoading(true);
-      try {
-        // Fetch all elections
-        const { data: electionsData, error: electionsError } = await supabase
-          .from('elections')
-          .select('*');
+  // Function to fetch elections data
+  const fetchElections = async () => {
+    console.log("Fetching elections data...");
+    setLoading(true);
+    
+    try {
+      // Fetch all elections
+      const { data: electionsData, error: electionsError } = await supabase
+        .from('elections')
+        .select('*');
 
-        if (electionsError) {
-          throw electionsError;
-        }
+      if (electionsError) {
+        console.error("Error fetching elections:", electionsError);
+        throw electionsError;
+      }
 
-        // For each election, fetch its candidates
-        const electionsWithCandidates = await Promise.all(
-          electionsData.map(async (election) => {
-            const { data: candidatesData, error: candidatesError } = await supabase
-              .from('candidates')
-              .select('*')
-              .eq('election_id', election.id);
-
-            if (candidatesError) {
-              console.error('Error fetching candidates:', candidatesError);
-              return null;
-            }
-
-            // Get total votes for this election
-            const { count, error: countError } = await supabase
-              .from('votes')
-              .select('*', { count: 'exact', head: true })
-              .eq('election_id', election.id);
-
-            if (countError) {
-              console.error('Error counting votes:', countError);
-            }
-
-            // Calculate each candidate's votes
-            const candidatesWithVotes = await Promise.all(
-              candidatesData.map(async (candidate) => {
-                const { count: candidateVotes, error: voteCountError } = await supabase
-                  .from('votes')
-                  .select('*', { count: 'exact', head: true })
-                  .eq('candidate_id', candidate.id);
-
-                if (voteCountError) {
-                  console.error('Error counting candidate votes:', voteCountError);
-                }
-
-                return {
-                  id: candidate.id,
-                  name: candidate.name,
-                  description: candidate.description,
-                  imageUrl: candidate.image_url,
-                  votes: candidateVotes || 0
-                };
-              })
-            );
-
-            // Determine election status based on dates
-            const now = new Date();
-            const startDate = new Date(election.start_date);
-            const endDate = new Date(election.end_date);
-
-            let status: 'upcoming' | 'active' | 'completed';
-            if (now < startDate) {
-              status = 'upcoming';
-            } else if (now > endDate) {
-              status = 'completed';
-            } else {
-              status = 'active';
-            }
-
-            return {
-              id: election.id,
-              title: election.title,
-              description: election.description || '',
-              startDate: election.start_date,
-              endDate: election.end_date,
-              status,
-              candidates: candidatesWithVotes,
-              totalVotes: count || 0,
-              rules: [] // You might want to add this field to your elections table
-            };
-          })
-        );
-
-        const validElections = electionsWithCandidates.filter(election => election !== null) as Election[];
-        setElections(validElections);
-
-        // If user is authenticated, fetch their votes
+      if (!electionsData || electionsData.length === 0) {
+        console.log("No elections found");
+        setElections([]);
         if (user) {
-          const { data: votesData, error: votesError } = await supabase
-            .from('votes')
-            .select('*')
-            .eq('voter_id', user.id);
+          fetchUserVotes(user.id);
+        } else {
+          setLoading(false);
+        }
+        return;
+      }
 
-          if (votesError) {
-            throw votesError;
+      console.log(`Found ${electionsData.length} elections`);
+
+      // Default rules (could be stored in the database later)
+      const defaultRules = [
+        "You must be a verified voter to participate",
+        "You can vote only once per election",
+        "Your vote is anonymous and secure",
+        "Results will be published after the election ends"
+      ];
+
+      // For each election, fetch its candidates
+      const electionsWithCandidates = await Promise.all(
+        electionsData.map(async (election) => {
+          const { data: candidatesData, error: candidatesError } = await supabase
+            .from('candidates')
+            .select('*')
+            .eq('election_id', election.id);
+
+          if (candidatesError) {
+            console.error(`Error fetching candidates for election ${election.id}:`, candidatesError);
+            return null;
           }
 
-          const formattedVotes = votesData.map(vote => ({
-            id: vote.id,
-            userId: vote.voter_id,
-            electionId: vote.election_id,
-            candidateId: vote.candidate_id,
-            timestamp: vote.created_at
-          }));
+          // Get total votes for this election
+          const { count, error: countError } = await supabase
+            .from('votes')
+            .select('*', { count: 'exact', head: true })
+            .eq('election_id', election.id);
 
-          setUserVotes(formattedVotes);
-        }
+          if (countError) {
+            console.error(`Error counting votes for election ${election.id}:`, countError);
+          }
 
-      } catch (error: any) {
-        console.error('Error fetching elections data:', error.message);
-        toast({
-          title: "Error",
-          description: "Failed to load elections data. Please try again later.",
-          variant: "destructive"
-        });
-      } finally {
+          // Calculate each candidate's votes
+          const candidatesWithVotes = await Promise.all(
+            (candidatesData || []).map(async (candidate) => {
+              const { count: candidateVotes, error: voteCountError } = await supabase
+                .from('votes')
+                .select('*', { count: 'exact', head: true })
+                .eq('candidate_id', candidate.id);
+
+              if (voteCountError) {
+                console.error(`Error counting votes for candidate ${candidate.id}:`, voteCountError);
+              }
+
+              return {
+                id: candidate.id,
+                name: candidate.name,
+                description: candidate.description,
+                imageUrl: candidate.image_url,
+                votes: candidateVotes || 0
+              };
+            })
+          );
+
+          // Determine election status based on dates
+          const now = new Date();
+          const startDate = new Date(election.start_date);
+          const endDate = new Date(election.end_date);
+
+          let status: 'upcoming' | 'active' | 'completed';
+          if (now < startDate) {
+            status = 'upcoming';
+          } else if (now > endDate) {
+            status = 'completed';
+          } else {
+            status = 'active';
+          }
+
+          return {
+            id: election.id,
+            title: election.title,
+            description: election.description || '',
+            startDate: election.start_date,
+            endDate: election.end_date,
+            status,
+            candidates: candidatesWithVotes,
+            totalVotes: count || 0,
+            rules: defaultRules 
+          };
+        })
+      );
+
+      const validElections = electionsWithCandidates.filter(election => election !== null) as Election[];
+      console.log(`Processed ${validElections.length} elections with candidates`);
+      setElections(validElections);
+
+      // If user is authenticated, fetch their votes
+      if (user) {
+        fetchUserVotes(user.id);
+      } else {
         setLoading(false);
       }
-    };
+    } catch (error: any) {
+      console.error('Error fetching elections data:', error.message);
+      toast({
+        title: "Error",
+        description: "Failed to load elections data. Please try again later.",
+        variant: "destructive"
+      });
+      setLoading(false);
+    }
+  };
 
+  // Function to fetch user's votes
+  const fetchUserVotes = async (userId: string) => {
+    try {
+      const { data: votesData, error: votesError } = await supabase
+        .from('votes')
+        .select('*')
+        .eq('voter_id', userId);
+
+      if (votesError) {
+        console.error(`Error fetching votes for user ${userId}:`, votesError);
+        throw votesError;
+      }
+
+      if (!votesData) {
+        console.log(`No votes found for user ${userId}`);
+        setUserVotes([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`Found ${votesData.length} votes for user ${userId}`);
+
+      const formattedVotes = votesData.map(vote => ({
+        id: vote.id,
+        userId: vote.voter_id,
+        electionId: vote.election_id,
+        candidateId: vote.candidate_id,
+        timestamp: vote.created_at
+      }));
+
+      setUserVotes(formattedVotes);
+    } catch (error: any) {
+      console.error('Error fetching user votes:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch elections and votes data
+  useEffect(() => {
     fetchElections();
     
     // Setup realtime subscription for votes
@@ -196,7 +243,31 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         'postgres_changes',
         { event: '*', schema: 'public', table: 'votes' },
         () => {
-          // Refresh elections data when votes change
+          console.log('Votes table changed, refreshing data...');
+          fetchElections();
+        }
+      )
+      .subscribe();
+
+    const electionsChannel = supabase
+      .channel('elections-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'elections' },
+        () => {
+          console.log('Elections table changed, refreshing data...');
+          fetchElections();
+        }
+      )
+      .subscribe();
+
+    const candidatesChannel = supabase
+      .channel('candidates-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'candidates' },
+        () => {
+          console.log('Candidates table changed, refreshing data...');
           fetchElections();
         }
       )
@@ -204,8 +275,10 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => {
       supabase.removeChannel(votesChannel);
+      supabase.removeChannel(electionsChannel);
+      supabase.removeChannel(candidatesChannel);
     };
-  }, [user, toast]);
+  }, [user]);
 
   const getElection = (id: string) => {
     return elections.find(election => election.id === id);
@@ -222,6 +295,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
+      console.log("Creating new election:", electionData);
+      
       // Insert the election record
       const { data: newElection, error: electionError } = await supabase
         .from('elections')
@@ -235,7 +310,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .select()
         .single();
 
-      if (electionError) throw electionError;
+      if (electionError) {
+        console.error("Error creating election:", electionError);
+        throw electionError;
+      }
+      
+      console.log("Election created successfully:", newElection);
 
       // Log the activity
       await supabase.from('activity_logs').insert({
@@ -250,27 +330,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
 
       // Refresh the elections list
-      const { data, error } = await supabase
-        .from('elections')
-        .select('*');
-
-      if (!error && data) {
-        // Process the elections data as before
-        // This is simplified - you should reuse the logic from the useEffect
-        const processedElections = data.map(election => ({
-          id: election.id,
-          title: election.title,
-          description: election.description || '',
-          startDate: election.start_date,
-          endDate: election.end_date,
-          status: 'upcoming' as const, // Simplification
-          candidates: [],
-          totalVotes: 0
-        }));
-
-        setElections(prev => [...processedElections]);
-      }
-
+      fetchElections();
     } catch (error: any) {
       console.error('Error creating election:', error);
       toast({
@@ -292,6 +352,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
+      console.log("Updating election:", id, electionData);
+      
       // Map from our frontend model to database model
       const dbData: any = {};
       
@@ -305,7 +367,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .update(dbData)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating election:", error);
+        throw error;
+      }
+      
+      console.log("Election updated successfully");
 
       // Log the activity
       await supabase.from('activity_logs').insert({
@@ -314,7 +381,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         details: { election_id: id }
       });
 
-      // Update the local state (simplified)
+      // Update the local state
       setElections(prev => 
         prev.map(election => 
           election.id === id 
@@ -348,6 +415,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
+      console.log("Deleting election:", id);
+      
       // Get election title before deletion
       const election = elections.find(e => e.id === id);
       
@@ -356,7 +425,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting election:", error);
+        throw error;
+      }
+      
+      console.log("Election deleted successfully");
 
       // Log the activity
       await supabase.from('activity_logs').insert({
@@ -395,6 +469,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     
     try {
+      console.log("Casting vote:", { electionId, candidateId, userId: user.id });
+      
       // Check if user already voted in this election
       const existingVote = userVotes.find(
         vote => vote.userId === user.id && vote.electionId === electionId
@@ -420,7 +496,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error casting vote:", error);
+        throw error;
+      }
+      
+      console.log("Vote cast successfully:", data);
       
       // Log activity
       await supabase.from('activity_logs').insert({
@@ -440,7 +521,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       setUserVotes(prev => [...prev, newVote]);
       
-      // Update election state (simplified)
+      // Update election state
       setElections(prev => 
         prev.map(election => {
           if (election.id === electionId) {

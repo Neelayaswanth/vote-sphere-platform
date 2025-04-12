@@ -48,105 +48,123 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchVoters = async () => {
-      if (!user || user.role !== 'admin') {
+  // Function to fetch all voter data
+  const fetchVoters = async () => {
+    if (!user || user.role !== 'admin') {
+      setLoading(false);
+      return;
+    }
+
+    console.log("Fetching voters data...");
+    setLoading(true);
+    
+    try {
+      // Fetch all user profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+        
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+        throw profilesError;
+      }
+
+      if (!profiles || profiles.length === 0) {
+        console.log("No profiles found");
+        setVoters([]);
         setLoading(false);
         return;
       }
 
-      try {
-        setLoading(true);
-        
-        // Fetch all user profiles
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-          
-        if (profilesError) throw profilesError;
+      console.log(`Found ${profiles.length} profiles`);
 
-        // For each profile, get their voting history
-        const votersWithHistory = await Promise.all(
-          profiles.map(async (profile) => {
-            // Get voting history
-            const { data: votes, error: votesError } = await supabase
-              .from('votes')
-              .select('election_id, created_at')
-              .eq('voter_id', profile.id);
-              
-            if (votesError) {
-              console.error(`Error fetching votes for user ${profile.id}:`, votesError);
-              return null;
-            }
+      // For each profile, get their voting history
+      const votersWithHistory = await Promise.all(
+        profiles.map(async (profile) => {
+          // Get voting history
+          const { data: votes, error: votesError } = await supabase
+            .from('votes')
+            .select('election_id, created_at')
+            .eq('voter_id', profile.id);
+            
+          if (votesError) {
+            console.error(`Error fetching votes for user ${profile.id}:`, votesError);
+            return null;
+          }
 
-            // Format voting history
-            const votingHistory = votes ? votes.map(vote => ({
-              electionId: vote.election_id,
-              votedAt: vote.created_at
-            })) : [];
+          // Format voting history
+          const votingHistory = votes ? votes.map(vote => ({
+            electionId: vote.election_id,
+            votedAt: vote.created_at
+          })) : [];
 
-            // For simplicity, we use created_at for lastActive
-            // In a real application, you would track user activity more granularly
+          return {
+            id: profile.id,
+            name: profile.name,
+            email: "", // We don't have this in profiles
+            role: profile.role as UserRole,
+            verified: profile.verified,
+            profileImage: profile.profile_image,
+            registeredDate: profile.created_at,
+            lastActive: profile.updated_at,
+            status: profile.status || 'active',
+            votingHistory
+          };
+        })
+      );
 
-            return {
-              id: profile.id,
-              name: profile.name,
-              email: "", // We don't have this in profiles, would require auth.users access
-              role: profile.role as UserRole,
-              verified: profile.verified,
-              profileImage: profile.profile_image,
-              registeredDate: profile.created_at,
-              lastActive: profile.updated_at,
-              status: 'active', // We could add a status field to profiles table
-              votingHistory
-            };
-          })
-        );
+      const filteredVoters = votersWithHistory.filter(v => v !== null) as Voter[];
+      console.log(`Processed ${filteredVoters.length} voter profiles with history`);
+      setVoters(filteredVoters);
+    } catch (error: any) {
+      console.error('Error fetching voters:', error);
+      toast({
+        title: "Error",
+        description: `Failed to load voters: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const filteredVoters = votersWithHistory.filter(v => v !== null) as Voter[];
-        setVoters(filteredVoters);
-      } catch (error: any) {
-        console.error('Error fetching voters:', error);
-        toast({
-          title: "Error",
-          description: `Failed to load voters: ${error.message}`,
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVoters();
-    
-    // Set up realtime subscriptions for profiles and votes
-    const profilesChannel = supabase
-      .channel('profiles-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        () => {
-          fetchVoters();
-        }
-      )
-      .subscribe();
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchVoters();
       
-    const votesChannel = supabase
-      .channel('votes-for-voters')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'votes' },
-        () => {
-          fetchVoters();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(profilesChannel);
-      supabase.removeChannel(votesChannel);
-    };
-  }, [user, toast]);
+      // Set up realtime subscriptions for profiles and votes
+      const profilesChannel = supabase
+        .channel('profiles-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles' },
+          () => {
+            console.log('Profiles table changed, refreshing data...');
+            fetchVoters();
+          }
+        )
+        .subscribe();
+        
+      const votesChannel = supabase
+        .channel('votes-for-voters')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'votes' },
+          () => {
+            console.log('Votes table changed, refreshing data...');
+            fetchVoters();
+          }
+        )
+        .subscribe();
+  
+      return () => {
+        supabase.removeChannel(profilesChannel);
+        supabase.removeChannel(votesChannel);
+      };
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   const getVoter = (id: string) => {
     return voters.find(voter => voter.id === id);
@@ -163,10 +181,15 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     try {
-      // In a real application, you would add a status column to profiles
-      // This is a simplified implementation
+      // Update status in profiles table
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('id', id);
+        
+      if (error) throw error;
       
-      // Here we're just updating the local state for demonstration
+      // Update local state
       setVoters(prev => 
         prev.map(voter => 
           voter.id === id ? { ...voter, status } : voter

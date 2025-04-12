@@ -1,15 +1,19 @@
+
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isLoading) return;
+
+    console.log("Auth state in Index:", { user, isLoading });
 
     if (!user) {
       // If no user is authenticated, redirect to auth page
@@ -24,9 +28,9 @@ const Index = () => {
   }, [user, isLoading, navigate]);
 
   return (
-    <div className="min-h-screen flex justify-center items-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <span className="ml-2 text-lg">Loading...</span>
+    <div className="min-h-screen flex flex-col justify-center items-center">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <span className="text-lg font-medium">Loading your dashboard...</span>
     </div>
   );
 };
