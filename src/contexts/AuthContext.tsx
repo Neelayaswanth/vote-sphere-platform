@@ -1,10 +1,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from '@supabase/supabase-js';
 
 export type UserRole = 'voter' | 'admin' | null;
 
-interface User {
+interface AppUser {
   id: string;
   name: string;
   email: string;
@@ -14,12 +16,12 @@ interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
-  updateUser: (userData: Partial<User>) => void;
+  updateUser: (userData: Partial<AppUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,69 +34,101 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-// Mock user data for demonstration purposes
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin',
-    verified: true,
-    profileImage: '/placeholder.svg',
-  },
-  {
-    id: '2',
-    name: 'Voter User',
-    email: 'voter@example.com',
-    role: 'voter',
-    verified: true,
-    profileImage: '/placeholder.svg',
-  },
-  {
-    id: '3',
-    name: 'Unverified Voter',
-    email: 'unverified@example.com',
-    role: 'voter',
-    verified: false,
-    profileImage: '/placeholder.svg',
-  }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  // Check for stored user on initial load
+  // Initialize auth state
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Fetch user profile from the profiles table
+          setTimeout(async () => {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .single();
+              
+            if (data && !error) {
+              setUser({
+                id: data.id,
+                name: data.name,
+                email: currentSession.user.email || '',
+                role: data.role,
+                verified: data.verified,
+                profileImage: data.profile_image,
+              });
+            } else {
+              console.error('Error fetching user profile:', error);
+            }
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (initialSession?.user) {
+        setSession(initialSession);
+        
+        // Fetch user profile
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', initialSession.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              setUser({
+                id: data.id,
+                name: data.name,
+                email: initialSession.user.email || '',
+                role: data.role,
+                verified: data.verified,
+                profileImage: data.profile_image,
+              });
+            } else {
+              console.error('Error fetching user profile:', error);
+            }
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      // Check mock users for matching email (in a real app, you'd validate the password too)
-      const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (!foundUser) {
-        throw new Error('Invalid email or password');
+      if (error) {
+        throw error;
       }
-      
-      // Save to localStorage and state
-      localStorage.setItem('user', JSON.stringify(foundUser));
-      setUser(foundUser);
       
       toast({
         title: "Login successful",
-        description: `Welcome back, ${foundUser.name}!`,
+        description: "Welcome back!",
       });
     } catch (error: any) {
       toast({
@@ -112,34 +146,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if email already exists
-      if (mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error('Email already in use');
-      }
-      
-      // Create new user (in a real app, this would be handled by your backend)
-      const newUser: User = {
-        id: String(mockUsers.length + 1),
-        name,
+      const { error } = await supabase.auth.signUp({
         email,
-        role: role || 'voter', // Default to voter
-        verified: role === 'admin', // Auto-verify admins for demo
-        profileImage: '/placeholder.svg',
-      };
+        password,
+        options: {
+          data: {
+            name,
+            role: role || 'voter',
+          },
+        },
+      });
       
-      // Add to mock users (this would be a DB operation in a real app)
-      mockUsers.push(newUser);
-      
-      // Save to localStorage and state
-      localStorage.setItem('user', JSON.stringify(newUser));
-      setUser(newUser);
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Signup successful",
-        description: "Your account has been created successfully.",
+        description: "Your account has been created successfully. Please check your email for verification.",
       });
     } catch (error: any) {
       toast({
@@ -153,34 +177,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully.",
-    });
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Logout failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const updateUser = (userData: Partial<User>) => {
+  const updateUser = async (userData: Partial<AppUser>) => {
     if (!user) return;
     
-    const updatedUser = { ...user, ...userData };
-    
-    // Update in mock users array (this would be a DB operation in a real app)
-    const userIndex = mockUsers.findIndex(u => u.id === user.id);
-    if (userIndex >= 0) {
-      mockUsers[userIndex] = updatedUser;
+    try {
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          profile_image: userData.profileImage,
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      setUser(prev => prev ? { ...prev, ...userData } : null);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
-    
-    // Update in localStorage and state
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
-    
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully.",
-    });
   };
 
   const value = {
