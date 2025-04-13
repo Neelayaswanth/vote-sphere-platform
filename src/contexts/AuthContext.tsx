@@ -1,9 +1,11 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from '@supabase/supabase-js';
 
 export type UserRole = 'voter' | 'admin' | null;
+export type UserStatus = 'active' | 'blocked';
 
 interface AppUser {
   id: string;
@@ -12,7 +14,7 @@ interface AppUser {
   role: UserRole;
   verified: boolean;
   profileImage?: string;
-  status?: 'active' | 'blocked';
+  status?: UserStatus;
 }
 
 interface AuthContextType {
@@ -79,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         verified: data.verified,
         profileImage: data.profile_image,
-        status: data.status || 'active',
+        status: 'active', // Default value since the field might not exist yet
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);

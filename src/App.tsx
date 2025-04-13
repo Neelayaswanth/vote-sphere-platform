@@ -27,6 +27,7 @@ import VoterSettings from "./pages/voter/VoterSettings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import VoterManagement from "./pages/admin/VoterManagement";
 import ElectionManagement from "./pages/admin/ElectionManagement";
+import CreateElection from "./pages/admin/CreateElection";
 import ActivityLogs from "./pages/admin/ActivityLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 
@@ -64,6 +65,7 @@ const App = () => (
                     <Route index element={<AdminDashboard />} />
                     <Route path="voters" element={<VoterManagement />} />
                     <Route path="elections" element={<ElectionManagement />} />
+                    <Route path="elections/new" element={<CreateElection />} />
                     <Route path="activity-logs" element={<ActivityLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
                   </Route>
