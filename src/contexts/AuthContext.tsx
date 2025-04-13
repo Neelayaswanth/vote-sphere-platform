@@ -279,13 +279,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     try {
+      // Prepare the update data
+      const updateData: Record<string, any> = {};
+      
+      // Only include fields that exist in the profiles table
+      if (userData.name) updateData.name = userData.name;
+      if (userData.profileImage) updateData.profile_image = userData.profileImage;
+      if (userData.status) updateData.status = userData.status;
+      
       // Update the profile in Supabase
       const { error } = await supabase
         .from('profiles')
-        .update({
-          name: userData.name,
-          profile_image: userData.profileImage,
-        })
+        .update(updateData)
         .eq('id', user.id);
         
       if (error) {

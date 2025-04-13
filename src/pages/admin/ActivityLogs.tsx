@@ -164,9 +164,9 @@ export default function ActivityLogs() {
         userName: log.profiles?.name || 'Unknown User',
         userEmail: '', // We don't get email from the database
         action: log.action,
-        details: typeof log.details === 'object' ? JSON.stringify(log.details) : (log.details || ''),
+        details: typeof log.details === 'object' ? JSON.stringify(log.details) : (log.details?.toString() || ''),
         timestamp: log.created_at,
-        ipAddress: log.details?.ip_address || '127.0.0.1'
+        ipAddress: typeof log.details === 'object' && log.details ? (log.details.ip_address as string || '127.0.0.1') : '127.0.0.1'
       }));
       
       setActivityLogs(formattedLogs);
