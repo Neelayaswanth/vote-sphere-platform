@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -51,6 +50,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Json } from '@/integrations/supabase/types';
 
 // Activity log interface
 interface ActivityLog {
@@ -123,6 +123,39 @@ const getActionConfig = (action: string) => {
   };
 };
 
+// Helper to safely extract IP address from details
+const extractIpAddress = (details: Json | null): string => {
+  if (!details) return '127.0.0.1';
+  
+  // Handle different types of Json
+  if (typeof details === 'object' && details !== null) {
+    // Check if it's an array
+    if (Array.isArray(details)) {
+      return '127.0.0.1';
+    }
+    
+    // It's an object, try to get ip_address
+    return (details as Record<string, any>)['ip_address'] || '127.0.0.1';
+  }
+  
+  return '127.0.0.1';
+};
+
+// Helper to stringify details for display
+const formatDetails = (details: Json | null): string => {
+  if (!details) return '';
+  
+  if (typeof details === 'object') {
+    try {
+      return JSON.stringify(details);
+    } catch (e) {
+      return String(details);
+    }
+  }
+  
+  return String(details);
+};
+
 export default function ActivityLogs() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,16 +191,21 @@ export default function ActivityLogs() {
       }
       
       // Transform data to match our ActivityLog interface
-      const formattedLogs: ActivityLog[] = data.map(log => ({
-        id: log.id,
-        userId: log.user_id,
-        userName: log.profiles?.name || 'Unknown User',
-        userEmail: '', // We don't get email from the database
-        action: log.action,
-        details: typeof log.details === 'object' ? JSON.stringify(log.details) : (log.details?.toString() || ''),
-        timestamp: log.created_at,
-        ipAddress: typeof log.details === 'object' && log.details ? (log.details.ip_address as string || '127.0.0.1') : '127.0.0.1'
-      }));
+      const formattedLogs: ActivityLog[] = data.map(log => {
+        // Default name if profiles relation fails
+        const userName = log.profiles ? log.profiles.name : 'Unknown User';
+        
+        return {
+          id: log.id,
+          userId: log.user_id,
+          userName: userName,
+          userEmail: '', // We don't get email from the database
+          action: log.action,
+          details: formatDetails(log.details),
+          timestamp: log.created_at,
+          ipAddress: extractIpAddress(log.details)
+        };
+      });
       
       setActivityLogs(formattedLogs);
     } catch (error: any) {

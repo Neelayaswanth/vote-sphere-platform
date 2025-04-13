@@ -81,7 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Ensure role is of type UserRole
       const role = validateUserRole(data.role);
-      // Ensure status is of type UserStatus
+      
+      // Ensure status is of type UserStatus - handle case where status doesn't exist in older profiles
       const status = validateUserStatus(data.status);
       
       return {

@@ -106,6 +106,9 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             votedAt: vote.created_at
           })) : [];
 
+          // Handle status property (it may not exist in older profiles)
+          const status = getDefaultStatus(profile.status);
+
           return {
             id: profile.id,
             name: profile.name,
@@ -115,7 +118,7 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             profileImage: profile.profile_image,
             registeredDate: profile.created_at,
             lastActive: profile.updated_at,
-            status: getDefaultStatus(profile.status),
+            status,
             votingHistory
           };
         })
