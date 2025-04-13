@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -36,7 +36,8 @@ import {
   Lock, 
   LogIn, 
   UserPlus,
-  Settings 
+  Settings,
+  Loader2
 } from 'lucide-react';
 import { 
   Popover, 
@@ -47,110 +48,21 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Mock data for activity logs
-const activityLogsMock = [
-  {
-    id: '1',
-    userId: '2',
-    userName: 'John Smith',
-    userEmail: 'voter@example.com',
-    action: 'VOTE_CAST',
-    details: 'Voted in "City Council Election"',
-    timestamp: '2024-04-12T08:30:45.000Z',
-    ipAddress: '192.168.1.101'
-  },
-  {
-    id: '2',
-    userId: '3',
-    userName: 'Maria Garcia',
-    userEmail: 'unverified@example.com',
-    action: 'ACCOUNT_CREATED',
-    details: 'New voter account registered',
-    timestamp: '2024-04-11T14:22:18.000Z',
-    ipAddress: '192.168.1.102'
-  },
-  {
-    id: '3',
-    userId: '1',
-    userName: 'Admin User',
-    userEmail: 'admin@example.com',
-    action: 'VERIFY_VOTER',
-    details: 'Verified voter account for "Michael Brown"',
-    timestamp: '2024-04-11T10:15:33.000Z',
-    ipAddress: '192.168.1.100'
-  },
-  {
-    id: '4',
-    userId: '4',
-    userName: 'James Johnson',
-    userEmail: 'james@example.com',
-    action: 'LOGIN_SUCCESS',
-    details: 'User logged in successfully',
-    timestamp: '2024-04-10T16:42:19.000Z',
-    ipAddress: '192.168.1.103'
-  },
-  {
-    id: '5',
-    userId: '1',
-    userName: 'Admin User',
-    userEmail: 'admin@example.com',
-    action: 'CREATE_ELECTION',
-    details: 'Created new election "Presidential Election 2025"',
-    timestamp: '2024-04-10T09:55:07.000Z',
-    ipAddress: '192.168.1.100'
-  },
-  {
-    id: '6',
-    userId: '1',
-    userName: 'Admin User',
-    userEmail: 'admin@example.com',
-    action: 'BLOCK_VOTER',
-    details: 'Blocked voter account "Sarah Williams"',
-    timestamp: '2024-04-09T11:20:41.000Z',
-    ipAddress: '192.168.1.100'
-  },
-  {
-    id: '7',
-    userId: '6',
-    userName: 'Michael Brown',
-    userEmail: 'michael@example.com',
-    action: 'VOTE_CAST',
-    details: 'Voted in "City Council Election"',
-    timestamp: '2024-04-08T13:38:24.000Z',
-    ipAddress: '192.168.1.105'
-  },
-  {
-    id: '8',
-    userId: '6',
-    userName: 'Michael Brown',
-    userEmail: 'michael@example.com',
-    action: 'PROFILE_UPDATE',
-    details: 'Updated profile information',
-    timestamp: '2024-04-07T15:10:12.000Z',
-    ipAddress: '192.168.1.105'
-  },
-  {
-    id: '9',
-    userId: '1',
-    userName: 'Admin User',
-    userEmail: 'admin@example.com',
-    action: 'SYSTEM_SETTINGS',
-    details: 'Updated system settings',
-    timestamp: '2024-04-06T10:05:33.000Z',
-    ipAddress: '192.168.1.100'
-  },
-  {
-    id: '10',
-    userId: '4',
-    userName: 'James Johnson',
-    userEmail: 'james@example.com',
-    action: 'LOGIN_FAILED',
-    details: 'Failed login attempt',
-    timestamp: '2024-04-05T08:30:45.000Z',
-    ipAddress: '192.168.1.103'
-  }
-];
+// Activity log interface
+interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  action: string;
+  details: string;
+  timestamp: string;
+  ipAddress: string;
+}
 
 // Action type definitions for badges and icons
 const actionTypeConfig: Record<string, { label: string; icon: React.ReactNode; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -201,14 +113,106 @@ const actionTypeConfig: Record<string, { label: string; icon: React.ReactNode; v
   }
 };
 
+// Helper function to get action config with defaults
+const getActionConfig = (action: string) => {
+  const actionKey = action.toUpperCase().replace(/_/g, '_');
+  return actionTypeConfig[actionKey] || { 
+    label: action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), 
+    icon: <Settings className="h-3.5 w-3.5 mr-1" />, 
+    variant: 'outline' 
+  };
+};
+
 export default function ActivityLogs() {
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<string>('ALL');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Function to fetch activity logs
+  const fetchActivityLogs = async () => {
+    if (!user || user.role !== 'admin') {
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Query activity logs with user profiles
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select(`
+          *,
+          profiles:user_id (name)
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Transform data to match our ActivityLog interface
+      const formattedLogs: ActivityLog[] = data.map(log => ({
+        id: log.id,
+        userId: log.user_id,
+        userName: log.profiles?.name || 'Unknown User',
+        userEmail: '', // We don't get email from the database
+        action: log.action,
+        details: typeof log.details === 'object' ? JSON.stringify(log.details) : (log.details || ''),
+        timestamp: log.created_at,
+        ipAddress: log.details?.ip_address || '127.0.0.1'
+      }));
+      
+      setActivityLogs(formattedLogs);
+    } catch (error: any) {
+      console.error('Error fetching activity logs:', error);
+      toast({
+        title: "Error",
+        description: `Failed to load activity logs: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+  
+  // Set up initial data fetch and realtime subscription
+  useEffect(() => {
+    fetchActivityLogs();
+    
+    // Set up realtime subscription for new activity logs
+    const channel = supabase
+      .channel('activity-logs-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'activity_logs' },
+        () => {
+          console.log('Activity logs table changed, refreshing data...');
+          fetchActivityLogs();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+  
+  // Handle manual refresh
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchActivityLogs();
+  };
   
   // Filter activity logs based on search, action type, and date range
-  const filteredLogs = activityLogsMock.filter(log => {
+  const filteredLogs = activityLogs.filter(log => {
     // Search filter
     const searchMatch = searchQuery === '' || 
       log.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -216,7 +220,7 @@ export default function ActivityLogs() {
       log.details.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Action type filter
-    const actionMatch = actionTypeFilter === 'ALL' || log.action === actionTypeFilter;
+    const actionMatch = actionTypeFilter === 'ALL' || log.action.toUpperCase() === actionTypeFilter;
     
     // Date range filter
     const logDate = new Date(log.timestamp);
@@ -226,10 +230,39 @@ export default function ActivityLogs() {
     return searchMatch && actionMatch && dateFromMatch && dateToMatch;
   });
   
-  // Sort by most recent first
-  const sortedLogs = [...filteredLogs].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  // Handle data export
+  const exportLogs = () => {
+    const dataToExport = filteredLogs.map(log => ({
+      Date: new Date(log.timestamp).toLocaleDateString(),
+      Time: new Date(log.timestamp).toLocaleTimeString(),
+      User: log.userName,
+      Action: getActionConfig(log.action).label,
+      Details: log.details,
+      'IP Address': log.ipAddress
+    }));
+    
+    const csvContent = 
+      "data:text/csv;charset=utf-8," + 
+      Object.keys(dataToExport[0]).join(",") + "\n" +
+      dataToExport.map(row => 
+        Object.values(row)
+          .map(value => `"${value}"`)
+          .join(",")
+      ).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `activity-logs-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Export Complete",
+      description: `${filteredLogs.length} logs exported to CSV`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -275,15 +308,9 @@ export default function ActivityLogs() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Actions</SelectItem>
-                  <SelectItem value="VOTE_CAST">Vote Cast</SelectItem>
-                  <SelectItem value="ACCOUNT_CREATED">Account Created</SelectItem>
-                  <SelectItem value="VERIFY_VOTER">Verify Voter</SelectItem>
-                  <SelectItem value="LOGIN_SUCCESS">Login Success</SelectItem>
-                  <SelectItem value="CREATE_ELECTION">Create Election</SelectItem>
-                  <SelectItem value="BLOCK_VOTER">Block Voter</SelectItem>
-                  <SelectItem value="PROFILE_UPDATE">Profile Update</SelectItem>
-                  <SelectItem value="SYSTEM_SETTINGS">System Settings</SelectItem>
-                  <SelectItem value="LOGIN_FAILED">Login Failed</SelectItem>
+                  {Object.entries(actionTypeConfig).map(([key, { label }]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -351,7 +378,7 @@ export default function ActivityLogs() {
               Reset Filters
             </Button>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportLogs}>
               <Download className="mr-2 h-4 w-4" />
               Export Logs
             </Button>
@@ -361,11 +388,26 @@ export default function ActivityLogs() {
       
       {/* Activity Logs Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Activity Logs</CardTitle>
-          <CardDescription>
-            Showing {sortedLogs.length} of {activityLogsMock.length} total logs
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Activity Logs</CardTitle>
+            <CardDescription>
+              {loading ? 'Loading logs...' : `Showing ${filteredLogs.length} of ${activityLogs.length} total logs`}
+            </CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+          >
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Loader2 className="h-4 w-4 mr-2" />
+            )}
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -376,40 +418,55 @@ export default function ActivityLogs() {
                   <TableHead>User</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Details</TableHead>
-                  <TableHead>IP Address</TableHead>
+                  <TableHead className="hidden md:table-cell">IP Address</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedLogs.length > 0 ? (
-                  sortedLogs.map(log => (
-                    <TableRow key={log.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleDateString()} {new Date(log.timestamp).toLocaleTimeString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{log.userName}</div>
-                            <div className="text-xs text-muted-foreground">{log.userEmail}</div>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      <div className="flex justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                      <div className="mt-2">Loading activity logs...</div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredLogs.length > 0 ? (
+                  filteredLogs.map(log => {
+                    const actionConfig = getActionConfig(log.action);
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(log.timestamp).toLocaleDateString()} {new Date(log.timestamp).toLocaleTimeString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="" />
+                              <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="truncate">
+                              <div className="font-medium">{log.userName}</div>
+                              {log.userEmail && (
+                                <div className="text-xs text-muted-foreground">{log.userEmail}</div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={actionTypeConfig[log.action]?.variant || 'default'}
-                          className="flex items-center w-fit"
-                        >
-                          {actionTypeConfig[log.action]?.icon}
-                          {actionTypeConfig[log.action]?.label || log.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{log.details}</TableCell>
-                      <TableCell className="text-muted-foreground">{log.ipAddress}</TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={actionConfig.variant}
+                            className="flex items-center w-fit whitespace-nowrap"
+                          >
+                            {actionConfig.icon}
+                            {actionConfig.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">{log.details}</TableCell>
+                        <TableCell className="text-muted-foreground hidden md:table-cell">{log.ipAddress}</TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">

@@ -14,7 +14,7 @@ interface AppUser {
   role: UserRole;
   verified: boolean;
   profileImage?: string;
-  status?: UserStatus;
+  status: UserStatus;
 }
 
 interface AuthContextType {
@@ -46,6 +46,14 @@ function validateUserRole(role: string): UserRole {
   return null;
 }
 
+// Helper function to validate user status
+function validateUserStatus(status: string | undefined): UserStatus {
+  if (status === 'active' || status === 'blocked') {
+    return status as UserStatus;
+  }
+  return 'active'; // Default value
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -73,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Ensure role is of type UserRole
       const role = validateUserRole(data.role);
+      // Ensure status is of type UserStatus
+      const status = validateUserStatus(data.status);
       
       return {
         id: data.id,
@@ -81,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         verified: data.verified,
         profileImage: data.profile_image,
-        status: 'active', // Default value since the field might not exist yet
+        status,
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);

@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import { UserRole } from './AuthContext';
+import { UserRole, UserStatus } from './AuthContext';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from './AuthContext';
 
@@ -14,7 +14,7 @@ export interface Voter {
   profileImage?: string;
   registeredDate: string;
   lastActive: string;
-  status: 'active' | 'blocked';
+  status: UserStatus;
   votingHistory: {
     electionId: string;
     votedAt: string;
@@ -24,11 +24,11 @@ export interface Voter {
 interface VoterContextType {
   voters: Voter[];
   getVoter: (id: string) => Voter | undefined;
-  updateVoterStatus: (id: string, status: 'active' | 'blocked') => Promise<void>;
+  updateVoterStatus: (id: string, status: UserStatus) => Promise<void>;
   updateVoterVerification: (id: string, verified: boolean) => Promise<void>;
   updateVoterRole: (id: string, role: UserRole) => Promise<void>;
   searchVoters: (query: string) => Voter[];
-  filterVoters: (filters: { role?: UserRole; verified?: boolean; status?: 'active' | 'blocked' }) => Voter[];
+  filterVoters: (filters: { role?: UserRole; verified?: boolean; status?: UserStatus }) => Voter[];
   loading: boolean;
 }
 
@@ -47,6 +47,14 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Function to get default status value
+  const getDefaultStatus = (profileStatus: string | undefined): UserStatus => {
+    if (profileStatus === 'active' || profileStatus === 'blocked') {
+      return profileStatus as UserStatus;
+    }
+    return 'active';
+  };
 
   // Function to fetch all voter data
   const fetchVoters = async () => {
@@ -107,7 +115,7 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             profileImage: profile.profile_image,
             registeredDate: profile.created_at,
             lastActive: profile.updated_at,
-            status: profile.status || 'active',
+            status: getDefaultStatus(profile.status),
             votingHistory
           };
         })
