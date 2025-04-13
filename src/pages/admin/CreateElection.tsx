@@ -16,7 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -57,7 +57,7 @@ interface CandidateForm {
 
 const CreateElection = () => {
   const { electionId } = useParams<{ electionId?: string }>();
-  const { createElection, getElection, updateElection } = useElection();
+  const { createElection, getElection, updateElection, addCandidate, updateCandidate, deleteCandidate } = useElection();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,24 +134,63 @@ const CreateElection = () => {
           // We'll handle candidates separately
         });
         
-        // Handle candidates update in a separate API call (not implemented in this scope)
-        // This would typically involve deleting removed candidates and adding new ones
-        
         toast({
           title: "Election Updated",
           description: "The election has been updated successfully.",
         });
+        
+        // Handle candidates update after the election update
+        if (candidates.length > 0) {
+          const election = getElection(electionId);
+          if (election) {
+            // Get existing candidate IDs in the election
+            const existingCandidateIds = new Set(election.candidates.map(c => c.id));
+            
+            // Process each candidate in our local state
+            for (const candidate of candidates) {
+              if (candidate.id && existingCandidateIds.has(candidate.id)) {
+                // Update existing candidate
+                await updateCandidate(candidate.id, {
+                  name: candidate.name,
+                  description: candidate.description,
+                  imageUrl: candidate.imageUrl
+                });
+                existingCandidateIds.delete(candidate.id);
+              } else if (!candidate.id) {
+                // Add new candidate
+                await addCandidate(electionId, {
+                  name: candidate.name,
+                  description: candidate.description,
+                  imageUrl: candidate.imageUrl
+                });
+              }
+            }
+            
+            // Delete candidates that are no longer in our local state
+            for (const candidateId of existingCandidateIds) {
+              await deleteCandidate(candidateId);
+            }
+          }
+        }
       } else {
         // Create new election
-        await createElection({
+        const newElectionId = await createElection({
           title: values.title,
           description: values.description,
           startDate: values.startDate.toISOString(),
           endDate: values.endDate.toISOString(),
         });
         
-        // Note: We would typically create candidates here after election creation
-        // This would involve a separate API call to add candidates
+        // Add candidates to the new election
+        if (candidates.length > 0 && newElectionId) {
+          for (const candidate of candidates) {
+            await addCandidate(newElectionId, {
+              name: candidate.name,
+              description: candidate.description,
+              imageUrl: candidate.imageUrl
+            });
+          }
+        }
         
         toast({
           title: "Election Created",
@@ -394,67 +433,71 @@ const CreateElection = () => {
                     <DialogHeader>
                       <DialogTitle>{editingCandidateIndex !== null ? 'Edit Candidate' : 'Add New Candidate'}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={candidateForm.handleSubmit(handleCandidateSubmit)} className="space-y-4 py-4">
-                      <div className="space-y-4">
-                        <FormField
-                          control={candidateForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Candidate name" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    
+                    {/* Wrap candidate form in FormProvider */}
+                    <Form {...candidateForm}>
+                      <form onSubmit={candidateForm.handleSubmit(handleCandidateSubmit)} className="space-y-4 py-4">
+                        <div className="space-y-4">
+                          <FormField
+                            control={candidateForm.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Name</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Candidate name" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={candidateForm.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Description</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    placeholder="Brief candidate description..." 
+                                    className="min-h-[80px]"
+                                    {...field} 
+                                    value={field.value || ''}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={candidateForm.control}
+                            name="imageUrl"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Profile Image URL</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="https://example.com/image.jpg" 
+                                    {...field}
+                                    value={field.value || ''} 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         
-                        <FormField
-                          control={candidateForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Brief candidate description..." 
-                                  className="min-h-[80px]"
-                                  {...field} 
-                                  value={field.value || ''}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={candidateForm.control}
-                          name="imageUrl"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Profile Image URL</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="https://example.com/image.jpg" 
-                                  {...field}
-                                  value={field.value || ''} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button type="button" variant="outline">Cancel</Button>
-                        </DialogClose>
-                        <Button type="submit">{editingCandidateIndex !== null ? 'Update' : 'Add'} Candidate</Button>
-                      </DialogFooter>
-                    </form>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button type="button" variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button type="submit">{editingCandidateIndex !== null ? 'Update' : 'Add'} Candidate</Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
                   </DialogContent>
                 </Dialog>
               </div>
