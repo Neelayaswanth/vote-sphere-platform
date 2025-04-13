@@ -178,7 +178,7 @@ export default function ActivityLogs() {
     setLoading(true);
     
     try {
-      // Updated query to handle the join properly without relying on the schema cache
+      // Get all activity logs
       const { data: activityData, error } = await supabase
         .from('activity_logs')
         .select('*')
@@ -188,7 +188,7 @@ export default function ActivityLogs() {
         throw error;
       }
       
-      // Get profiles separately - this avoids the relation issue
+      // Get profiles separately to avoid relation issues
       const userIds = activityData.map(log => log.user_id);
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -221,6 +221,7 @@ export default function ActivityLogs() {
       });
       
       setActivityLogs(formattedLogs);
+      console.log('Activity logs loaded:', formattedLogs.length);
     } catch (error: any) {
       console.error('Error fetching activity logs:', error);
       toast({
@@ -238,20 +239,23 @@ export default function ActivityLogs() {
   useEffect(() => {
     fetchActivityLogs();
     
-    // Set up realtime subscription for new activity logs
+    // Set up realtime subscription for activity logs
     const channel = supabase
       .channel('activity-logs-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'activity_logs' },
-        () => {
-          console.log('Activity logs table changed, refreshing data...');
-          fetchActivityLogs();
+        (payload) => {
+          console.log('Activity logs table changed:', payload);
+          fetchActivityLogs(); // Refresh all logs on any change
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
       
     return () => {
+      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);

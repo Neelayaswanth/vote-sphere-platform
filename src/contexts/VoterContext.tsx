@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { UserRole, UserStatus } from './AuthContext';
@@ -48,7 +47,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Function to get default status value
   const getDefaultStatus = (profileStatus: string | undefined): UserStatus => {
     if (profileStatus === 'active' || profileStatus === 'blocked') {
       return profileStatus as UserStatus;
@@ -56,7 +54,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return 'active';
   };
 
-  // Function to fetch all voter data
   const fetchVoters = async () => {
     if (!user || user.role !== 'admin') {
       setLoading(false);
@@ -67,7 +64,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLoading(true);
     
     try {
-      // Fetch all user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
@@ -86,10 +82,8 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       console.log(`Found ${profiles.length} profiles`);
 
-      // For each profile, get their voting history
       const votersWithHistory = await Promise.all(
         profiles.map(async (profile) => {
-          // Get voting history
           const { data: votes, error: votesError } = await supabase
             .from('votes')
             .select('election_id, created_at')
@@ -100,19 +94,17 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return null;
           }
 
-          // Format voting history
           const votingHistory = votes ? votes.map(vote => ({
             electionId: vote.election_id,
             votedAt: vote.created_at
           })) : [];
 
-          // Use status from profile or default to 'active'
-          const status = getDefaultStatus(profile.status);
+          const status = getDefaultStatus(profile.status || 'active');
 
           return {
             id: profile.id,
             name: profile.name,
-            email: "", // We don't have this in profiles
+            email: "",
             role: profile.role as UserRole,
             verified: profile.verified,
             profileImage: profile.profile_image,
@@ -143,7 +135,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (user?.role === 'admin') {
       fetchVoters();
       
-      // Set up realtime subscriptions for profiles and votes
       const profilesChannel = supabase
         .channel('profiles-changes')
         .on(
@@ -192,7 +183,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     try {
-      // Update status in profiles table
       const { error } = await supabase
         .from('profiles')
         .update({ status })
@@ -200,14 +190,12 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
       if (error) throw error;
       
-      // Update local state
       setVoters(prev => 
         prev.map(voter => 
           voter.id === id ? { ...voter, status } : voter
         )
       );
       
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: `voter_${status}`,
@@ -242,7 +230,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     try {
-      // Update the verified field in profiles
       const { error } = await supabase
         .from('profiles')
         .update({ verified })
@@ -250,14 +237,12 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
       if (error) throw error;
       
-      // Update local state
       setVoters(prev => 
         prev.map(voter => 
           voter.id === id ? { ...voter, verified } : voter
         )
       );
       
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: verified ? 'verify_voter' : 'unverify_voter',
@@ -296,7 +281,6 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Invalid role specified");
       }
       
-      // Update the role in profiles
       const { error } = await supabase
         .from('profiles')
         .update({ role })
@@ -304,14 +288,12 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
       if (error) throw error;
       
-      // Update local state
       setVoters(prev => 
         prev.map(voter => 
           voter.id === id ? { ...voter, role } : voter
         )
       );
       
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: 'update_role',

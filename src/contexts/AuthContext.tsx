@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,9 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const role = validateUserRole(data.role);
       
-      // Use the status from the profile data, or default to 'active'
-      // Now the status property exists on the profiles table
-      const status = validateUserStatus(data.status);
+      const status = validateUserStatus(data.status || 'active');
       
       return {
         id: data.id,
