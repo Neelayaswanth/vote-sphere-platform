@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +36,6 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-// Helper function to validate that a role value is of type UserRole
 function validateUserRole(role: string): UserRole {
   if (role === 'voter' || role === 'admin') {
     return role as UserRole;
@@ -46,7 +44,6 @@ function validateUserRole(role: string): UserRole {
   return null;
 }
 
-// Helper function to validate user status
 function validateUserStatus(status: string | undefined): UserStatus {
   if (status === 'active' || status === 'blocked') {
     return status as UserStatus;
@@ -60,7 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  // Fetch user profile function to avoid code duplication
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -79,10 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
       
-      // Ensure role is of type UserRole
       const role = validateUserRole(data.role);
       
-      // Ensure status is of type UserStatus - handle case where status doesn't exist in older profiles
       const status = validateUserStatus(data.status);
       
       return {
@@ -100,33 +94,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Initialize auth state
   useEffect(() => {
     console.log("Auth Provider initializing...");
     setIsLoading(true);
     
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         
         if (currentSession?.user) {
-          // Fetch user profile after a brief timeout
-          // This helps prevent recursion in Supabase client
           setTimeout(async () => {
             const userData = await fetchUserProfile(currentSession.user.id);
             
             if (userData) {
               console.log("User profile fetched on auth change:", userData);
               
-              // Include email from session
               const fullUserData = {
                 ...userData,
                 email: currentSession.user.email || '',
               };
               
-              // Store user in localStorage for other contexts
               localStorage.setItem('user', JSON.stringify(fullUserData));
               
               setUser(fullUserData);
@@ -146,25 +134,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log("Initial session check:", initialSession?.user?.id);
       
       if (initialSession?.user) {
         setSession(initialSession);
         
-        // Fetch user profile
         fetchUserProfile(initialSession.user.id).then(userData => {
           if (userData) {
             console.log("Initial user profile:", userData);
             
-            // Include email from session
             const fullUserData = {
               ...userData,
               email: initialSession.user.email || '',
             };
             
-            // Store user in localStorage for other contexts
             localStorage.setItem('user', JSON.stringify(fullUserData));
             
             setUser(fullUserData);
@@ -280,15 +264,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     try {
-      // Prepare the update data
       const updateData: Record<string, any> = {};
       
-      // Only include fields that exist in the profiles table
       if (userData.name) updateData.name = userData.name;
       if (userData.profileImage) updateData.profile_image = userData.profileImage;
       if (userData.status) updateData.status = userData.status;
       
-      // Update the profile in Supabase
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
@@ -298,11 +279,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      // Update local state
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
       
-      // Update localStorage
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
       toast({

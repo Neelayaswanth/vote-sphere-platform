@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,11 +37,14 @@ interface ElectionContextType {
   elections: Election[];
   userVotes: Vote[];
   getElection: (id: string) => Election | undefined;
-  createElection: (electionData: Omit<Election, 'id' | 'totalVotes' | 'status' | 'candidates'>) => Promise<void>;
+  createElection: (electionData: Omit<Election, 'id' | 'totalVotes' | 'status' | 'candidates'>) => Promise<string>;
   updateElection: (id: string, electionData: Partial<Election>) => Promise<void>;
   deleteElection: (id: string) => Promise<void>;
   castVote: (electionId: string, candidateId: string) => Promise<void>;
   getUserVoteForElection: (electionId: string) => Vote | undefined;
+  addCandidate: (electionId: string, candidateData: Omit<Candidate, 'id' | 'votes'>) => Promise<void>;
+  updateCandidate: (candidateId: string, candidateData: Partial<Candidate>) => Promise<void>;
+  deleteCandidate: (candidateId: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -63,13 +65,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Function to fetch elections data
   const fetchElections = async () => {
     console.log("Fetching elections data...");
     setLoading(true);
     
     try {
-      // Fetch all elections
       const { data: electionsData, error: electionsError } = await supabase
         .from('elections')
         .select('*');
@@ -92,7 +92,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       console.log(`Found ${electionsData.length} elections`);
 
-      // Default rules (could be stored in the database later)
       const defaultRules = [
         "You must be a verified voter to participate",
         "You can vote only once per election",
@@ -100,7 +99,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         "Results will be published after the election ends"
       ];
 
-      // For each election, fetch its candidates
       const electionsWithCandidates = await Promise.all(
         electionsData.map(async (election) => {
           const { data: candidatesData, error: candidatesError } = await supabase
@@ -113,7 +111,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return null;
           }
 
-          // Get total votes for this election
           const { count, error: countError } = await supabase
             .from('votes')
             .select('*', { count: 'exact', head: true })
@@ -123,7 +120,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             console.error(`Error counting votes for election ${election.id}:`, countError);
           }
 
-          // Calculate each candidate's votes
           const candidatesWithVotes = await Promise.all(
             (candidatesData || []).map(async (candidate) => {
               const { count: candidateVotes, error: voteCountError } = await supabase
@@ -145,7 +141,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             })
           );
 
-          // Determine election status based on dates
           const now = new Date();
           const startDate = new Date(election.start_date);
           const endDate = new Date(election.end_date);
@@ -177,7 +172,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.log(`Processed ${validElections.length} elections with candidates`);
       setElections(validElections);
 
-      // If user is authenticated, fetch their votes
       if (user) {
         fetchUserVotes(user.id);
       } else {
@@ -194,7 +188,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Function to fetch user's votes
   const fetchUserVotes = async (userId: string) => {
     try {
       const { data: votesData, error: votesError } = await supabase
@@ -232,11 +225,9 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Fetch elections and votes data
   useEffect(() => {
     fetchElections();
     
-    // Setup realtime subscription for votes
     const votesChannel = supabase
       .channel('votes-changes')
       .on(
@@ -291,13 +282,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         description: "You must be logged in to create an election.",
         variant: "destructive"
       });
-      return;
+      throw new Error("Authentication required");
     }
 
     try {
       console.log("Creating new election:", electionData);
       
-      // Insert the election record
       const { data: newElection, error: electionError } = await supabase
         .from('elections')
         .insert({
@@ -317,7 +307,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       console.log("Election created successfully:", newElection);
 
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: 'create_election',
@@ -329,8 +318,9 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         description: `Election "${electionData.title}" has been created.`,
       });
 
-      // Refresh the elections list
       fetchElections();
+      
+      return newElection.id;
     } catch (error: any) {
       console.error('Error creating election:', error);
       toast({
@@ -338,6 +328,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         description: `Failed to create election: ${error.message}`,
         variant: "destructive"
       });
+      throw error;
     }
   };
 
@@ -354,7 +345,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       console.log("Updating election:", id, electionData);
       
-      // Map from our frontend model to database model
       const dbData: any = {};
       
       if (electionData.title) dbData.title = electionData.title;
@@ -374,14 +364,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       console.log("Election updated successfully");
 
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: 'update_election',
         details: { election_id: id }
       });
 
-      // Update the local state
       setElections(prev => 
         prev.map(election => 
           election.id === id 
@@ -417,7 +405,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       console.log("Deleting election:", id);
       
-      // Get election title before deletion
       const election = elections.find(e => e.id === id);
       
       const { error } = await supabase
@@ -432,14 +419,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       console.log("Election deleted successfully");
 
-      // Log the activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: 'delete_election',
         details: { election_id: id, title: election?.title }
       });
 
-      // Update local state
       setElections(prev => prev.filter(election => election.id !== id));
 
       toast({
@@ -471,7 +456,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       console.log("Casting vote:", { electionId, candidateId, userId: user.id });
       
-      // Check if user already voted in this election
       const existingVote = userVotes.find(
         vote => vote.userId === user.id && vote.electionId === electionId
       );
@@ -485,7 +469,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
       
-      // Cast vote in database
       const { data, error } = await supabase
         .from('votes')
         .insert({
@@ -503,14 +486,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       console.log("Vote cast successfully:", data);
       
-      // Log activity
       await supabase.from('activity_logs').insert({
         user_id: user.id,
         action: 'cast_vote',
         details: { election_id: electionId }
       });
       
-      // Add to local state
       const newVote: Vote = {
         id: data.id,
         userId: user.id,
@@ -521,7 +502,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       setUserVotes(prev => [...prev, newVote]);
       
-      // Update election state
       setElections(prev => 
         prev.map(election => {
           if (election.id === electionId) {
@@ -563,6 +543,178 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   };
 
+  const addCandidate = async (electionId: string, candidateData: Omit<Candidate, 'id' | 'votes'>) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add a candidate.",
+        variant: "destructive"
+      });
+      throw new Error("Authentication required");
+    }
+
+    try {
+      console.log("Adding candidate to election:", electionId, candidateData);
+      
+      const { data: newCandidate, error: candidateError } = await supabase
+        .from('candidates')
+        .insert({
+          election_id: electionId,
+          name: candidateData.name,
+          description: candidateData.description,
+          image_url: candidateData.imageUrl
+        })
+        .select()
+        .single();
+
+      if (candidateError) {
+        console.error("Error adding candidate:", candidateError);
+        throw candidateError;
+      }
+      
+      console.log("Candidate added successfully:", newCandidate);
+
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        action: 'add_candidate',
+        details: { 
+          election_id: electionId, 
+          candidate_id: newCandidate.id,
+          candidate_name: candidateData.name
+        }
+      });
+
+      toast({
+        title: "Success",
+        description: `Candidate "${candidateData.name}" has been added.`,
+      });
+
+      fetchElections();
+    } catch (error: any) {
+      console.error('Error adding candidate:', error);
+      toast({
+        title: "Error",
+        description: `Failed to add candidate: ${error.message}`,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const updateCandidate = async (candidateId: string, candidateData: Partial<Candidate>) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update a candidate.",
+        variant: "destructive"
+      });
+      throw new Error("Authentication required");
+    }
+
+    try {
+      console.log("Updating candidate:", candidateId, candidateData);
+      
+      const dbData: any = {};
+      
+      if (candidateData.name) dbData.name = candidateData.name;
+      if (candidateData.description) dbData.description = candidateData.description;
+      if (candidateData.imageUrl) dbData.image_url = candidateData.imageUrl;
+
+      const { error } = await supabase
+        .from('candidates')
+        .update(dbData)
+        .eq('id', candidateId);
+
+      if (error) {
+        console.error("Error updating candidate:", error);
+        throw error;
+      }
+      
+      console.log("Candidate updated successfully");
+
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        action: 'update_candidate',
+        details: { candidate_id: candidateId }
+      });
+
+      toast({
+        title: "Success",
+        description: "Candidate has been updated successfully.",
+      });
+
+      fetchElections();
+    } catch (error: any) {
+      console.error('Error updating candidate:', error);
+      toast({
+        title: "Error",
+        description: `Failed to update candidate: ${error.message}`,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const deleteCandidate = async (candidateId: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to delete a candidate.",
+        variant: "destructive"
+      });
+      throw new Error("Authentication required");
+    }
+
+    try {
+      console.log("Deleting candidate:", candidateId);
+      
+      const { data: candidate } = await supabase
+        .from('candidates')
+        .select('name, election_id')
+        .eq('id', candidateId)
+        .single();
+      
+      const { error } = await supabase
+        .from('candidates')
+        .delete()
+        .eq('id', candidateId);
+
+      if (error) {
+        console.error("Error deleting candidate:", error);
+        throw error;
+      }
+      
+      console.log("Candidate deleted successfully");
+
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        action: 'delete_candidate',
+        details: { 
+          candidate_id: candidateId,
+          election_id: candidate?.election_id,
+          candidate_name: candidate?.name
+        }
+      });
+
+      toast({
+        title: "Candidate deleted",
+        description: candidate?.name 
+          ? `"${candidate.name}" has been removed.` 
+          : "The candidate has been removed.",
+      });
+
+      fetchElections();
+    } catch (error: any) {
+      console.error('Error deleting candidate:', error);
+      toast({
+        title: "Error",
+        description: `Failed to delete candidate: ${error.message}`,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   const value = {
     elections,
     userVotes,
@@ -572,6 +724,9 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     deleteElection,
     castVote,
     getUserVoteForElection,
+    addCandidate,
+    updateCandidate,
+    deleteCandidate,
     loading
   };
 
