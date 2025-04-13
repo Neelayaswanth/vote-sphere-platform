@@ -80,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         verified: data.verified,
         profileImage: data.profile_image,
+        // Handle the status field with a default if it doesn't exist
         status: data.status || 'active',
       };
     } catch (err) {
