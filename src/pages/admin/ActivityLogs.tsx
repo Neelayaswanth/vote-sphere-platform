@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -177,23 +178,35 @@ export default function ActivityLogs() {
     setLoading(true);
     
     try {
-      // Query activity logs with user profiles
-      const { data, error } = await supabase
+      // Updated query to handle the join properly without relying on the schema cache
+      const { data: activityData, error } = await supabase
         .from('activity_logs')
-        .select(`
-          *,
-          profiles:user_id (name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
         
       if (error) {
         throw error;
       }
       
+      // Get profiles separately - this avoids the relation issue
+      const userIds = activityData.map(log => log.user_id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds);
+      
+      // Create a lookup map for user names
+      const userNameMap = new Map();
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          userNameMap.set(profile.id, profile.name);
+        });
+      }
+      
       // Transform data to match our ActivityLog interface
-      const formattedLogs: ActivityLog[] = data.map(log => {
-        // Default name if profiles relation fails
-        const userName = log.profiles ? log.profiles.name : 'Unknown User';
+      const formattedLogs: ActivityLog[] = activityData.map(log => {
+        // Get the user name from our map, or default to "Unknown User"
+        const userName = userNameMap.get(log.user_id) || 'Unknown User';
         
         return {
           id: log.id,

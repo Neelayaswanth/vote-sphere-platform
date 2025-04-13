@@ -78,7 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const role = validateUserRole(data.role);
       
-      // Extract status from the profile data, or default to 'active'
+      // Use the status from the profile data, or default to 'active'
+      // Now the status property exists on the profiles table
       const status = validateUserStatus(data.status);
       
       return {

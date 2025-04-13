@@ -106,7 +106,7 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             votedAt: vote.created_at
           })) : [];
 
-          // Handle status property (it may not exist in older profiles)
+          // Use status from profile or default to 'active'
           const status = getDefaultStatus(profile.status);
 
           return {
