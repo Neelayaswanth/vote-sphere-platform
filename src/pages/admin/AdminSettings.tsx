@@ -69,7 +69,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { AdminSupportCenter } from '@/components/support/AdminSupportCenter';
+import AdminSupportCenter from '@/components/support/AdminSupportCenter';
 
 const indianLanguages = [
   { code: 'en', name: 'English' },
