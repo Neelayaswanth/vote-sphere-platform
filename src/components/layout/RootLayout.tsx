@@ -1,24 +1,42 @@
+
 import { useState, useEffect } from "react"
-import { useTheme } from "next-themes"
-
-import { ModeToggle } from "@/components/mode-toggle"
-import { MainNav } from "@/components/main-nav"
-import { siteConfig } from "@/config/site"
 import { Link } from "react-router-dom"
-import LanguageSelector from './LanguageSelector';
+import LanguageSelector from './LanguageSelector'
+import { DarkModeToggle } from './DarkModeToggle'
 
-export function DarkModeToggle() {
-  const [mounted, setMounted] = useState(false)
-  const { setTheme } = useTheme()
+// Basic site config
+const siteConfig = {
+  name: "Election System",
+  mainNav: [
+    {
+      title: "Home",
+      href: "/",
+    },
+    {
+      title: "Voter",
+      href: "/voter",
+    },
+    {
+      title: "Admin",
+      href: "/admin",
+    },
+  ]
+}
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
+// Simple MainNav component
+const MainNav = ({ items }: { items: { title: string; href: string }[] }) => {
   return (
-    <div className="flex items-center space-x-2">
-      <ModeToggle />
-    </div>
+    <nav className="flex items-center space-x-4 lg:space-x-6">
+      {items.map((item) => (
+        <Link
+          key={item.href}
+          to={item.href}
+          className="nav-link hover:text-primary"
+        >
+          {item.title}
+        </Link>
+      ))}
+    </nav>
   )
 }
 
@@ -33,7 +51,6 @@ const RootLayout = ({ children }: RootLayoutProps) => {
         <div className="flex h-20 items-center justify-between py-6">
           <MainNav items={siteConfig.mainNav} />
           <Link to="/" className="mr-6 flex items-center space-x-2">
-            {/* <Icons.logo className="h-6 w-6" /> */}
             <span className="hidden font-bold sm:inline-block">
               {siteConfig.name}
             </span>
@@ -48,15 +65,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       <footer className="bg-background py-10 md:py-12">
         <div className="container">
           <div className="border-t py-4 text-center text-sm text-muted-foreground">
-            {/* Made with <Heart className="mx-1 inline-block h-4 w-4" /> by{" "} */}
-            {/* <a
-              href="https://shadcn.com"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              shadcn
-            </a> */}
+            {/* Footer content here */}
           </div>
         </div>
       </footer>
