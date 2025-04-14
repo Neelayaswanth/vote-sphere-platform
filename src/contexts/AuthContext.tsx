@@ -24,6 +24,8 @@ interface AuthContextType {
   signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<AppUser>) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  uploadProfileImage: (file: File) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -77,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const role = validateUserRole(data.role);
       
-      const status = validateUserStatus(data.status || 'active');
+      const status = validateUserStatus(data.status);
       
       return {
         id: data.id,
@@ -297,6 +299,106 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changePassword = async (oldPassword: string, newPassword: string) => {
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "You must be logged in to change your password.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: oldPassword,
+      });
+      
+      if (signInError) {
+        throw new Error("Current password is incorrect");
+      }
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been changed successfully.",
+      });
+    } catch (error: any) {
+      console.error("Password change error:", error);
+      toast({
+        title: "Password change failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const uploadProfileImage = async (file: File): Promise<string | null> => {
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "You must be logged in to upload a profile image.",
+        variant: "destructive"
+      });
+      return null;
+    }
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `profile_images/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file);
+        
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      const { data } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
+        
+      const publicUrl = data.publicUrl;
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ profile_image: publicUrl })
+        .eq('id', user.id);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      setUser(prev => prev ? { ...prev, profileImage: publicUrl } : null);
+      
+      toast({
+        title: "Profile image updated",
+        description: "Your profile image has been uploaded successfully.",
+      });
+      
+      return publicUrl;
+    } catch (error: any) {
+      console.error("Profile image upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const value = {
     user,
     session,
@@ -305,6 +407,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     updateUser,
+    changePassword,
+    uploadProfileImage
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

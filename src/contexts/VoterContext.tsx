@@ -28,6 +28,7 @@ interface VoterContextType {
   updateVoterRole: (id: string, role: UserRole) => Promise<void>;
   searchVoters: (query: string) => Voter[];
   filterVoters: (filters: { role?: UserRole; verified?: boolean; status?: UserStatus }) => Voter[];
+  exportVotersList: () => Promise<string>;
   loading: boolean;
 }
 
@@ -99,7 +100,7 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             votedAt: vote.created_at
           })) : [];
 
-          const status = getDefaultStatus(profile.status || 'active');
+          const status = getDefaultStatus(profile.status);
 
           return {
             id: profile.id,
@@ -349,6 +350,62 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const exportVotersList = async (): Promise<string> => {
+    if (voters.length === 0) {
+      toast({
+        title: "No data",
+        description: "There are no voters to export.",
+        variant: "destructive"
+      });
+      return "";
+    }
+    
+    try {
+      const headers = ["Name", "Email", "Role", "Verified", "Registration Date", "Last Active", "Status", "Votes Count"];
+      
+      const csvData = voters.map(voter => [
+        voter.name,
+        voter.email,
+        voter.role || "voter",
+        voter.verified ? "Yes" : "No",
+        new Date(voter.registeredDate).toLocaleDateString(),
+        new Date(voter.lastActive).toLocaleDateString(),
+        voter.status,
+        voter.votingHistory.length.toString()
+      ]);
+      
+      const csvContent = [
+        headers.join(","),
+        ...csvData.map(row => row.join(","))
+      ].join("\n");
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `voters_list_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export successful",
+        description: "Voters list has been downloaded as CSV.",
+      });
+      
+      return url;
+    } catch (error: any) {
+      console.error('Error exporting voters list:', error);
+      toast({
+        title: "Export failed",
+        description: `Failed to export voters: ${error.message}`,
+        variant: "destructive"
+      });
+      return "";
+    }
+  };
+
   const value = {
     voters,
     getVoter,
@@ -357,6 +414,7 @@ export const VoterProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateVoterRole,
     searchVoters,
     filterVoters,
+    exportVotersList,
     loading
   };
 

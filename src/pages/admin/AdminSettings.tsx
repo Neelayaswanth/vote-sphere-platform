@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -66,39 +66,38 @@ import {
   Users,
   VoteIcon 
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
-const adminAccountsMock = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'Super Admin',
-    lastActive: '2024-04-12T10:45:22.000Z',
-    status: 'active',
-    profileImage: '/placeholder.svg'
-  },
-  {
-    id: '101',
-    name: 'Sarah Johnson',
-    email: 'sarah.j@example.com',
-    role: 'Election Admin',
-    lastActive: '2024-04-10T14:30:00.000Z',
-    status: 'active',
-    profileImage: '/placeholder.svg'
-  },
-  {
-    id: '102',
-    name: 'David Rodriguez',
-    email: 'david.r@example.com',
-    role: 'Voter Admin',
-    lastActive: '2024-04-11T09:15:45.000Z',
-    status: 'active',
-    profileImage: '/placeholder.svg'
-  }
+const indianLanguages = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'or', name: 'Odia' },
+  { code: 'as', name: 'Assamese' },
+  { code: 'mai', name: 'Maithili' },
+  { code: 'sat', name: 'Santali' },
+  { code: 'ks', name: 'Kashmiri' },
+  { code: 'ne', name: 'Nepali' },
+  { code: 'sd', name: 'Sindhi' },
+  { code: 'doi', name: 'Dogri' },
+  { code: 'mni', name: 'Manipuri' },
+  { code: 'kok', name: 'Konkani' },
+  { code: 'brx', name: 'Bodo' }
 ];
 
 export default function AdminSettings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [platformSettings, setPlatformSettings] = useState({
     voteTimeout: 10,
@@ -110,12 +109,14 @@ export default function AdminSettings() {
     sessionTimeout: 30,
     maintenanceMode: false,
     autoLogout: true,
+    publishVotingResults: false,
   });
   
   const [newAdmin, setNewAdmin] = useState({
     name: '',
     email: '',
-    role: 'Voter Admin',
+    password: '',
+    role: 'admin' as UserRole,
   });
   
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
@@ -123,6 +124,55 @@ export default function AdminSettings() {
   
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [adminToRemove, setAdminToRemove] = useState<{id: string, name: string} | null>(null);
+  
+  const [adminAccounts, setAdminAccounts] = useState<any[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(true);
+  
+  const [enabledLanguages, setEnabledLanguages] = useState<Record<string, boolean>>({
+    en: true,
+    hi: true,
+    ta: true,
+    te: true,
+  });
+  const [defaultLanguage, setDefaultLanguage] = useState('en');
+  
+  useEffect(() => {
+    const fetchAdminAccounts = async () => {
+      if (!user || user.role !== 'admin') return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'admin');
+          
+        if (error) throw error;
+        
+        const admins = data.map(profile => ({
+          id: profile.id,
+          name: profile.name,
+          email: '',
+          role: profile.role,
+          lastActive: profile.updated_at,
+          status: profile.status || 'active',
+          profileImage: profile.profile_image || '/placeholder.svg'
+        }));
+        
+        setAdminAccounts(admins);
+      } catch (error) {
+        console.error('Error fetching admin accounts:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load admin accounts."
+        });
+      } finally {
+        setLoadingAdmins(false);
+      }
+    };
+    
+    fetchAdminAccounts();
+  }, [user]);
   
   const handleSettingChange = (setting: string, value: any) => {
     setPlatformSettings(prev => ({
@@ -136,6 +186,9 @@ export default function AdminSettings() {
     
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      localStorage.setItem('enabledLanguages', JSON.stringify(enabledLanguages));
+      localStorage.setItem('defaultLanguage', defaultLanguage);
       
       toast({
         title: "Settings Updated",
@@ -161,26 +214,73 @@ export default function AdminSettings() {
   
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+      });
+      return;
+    }
+    
     setIsAddingAdmin(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error: signupError } = await supabase.auth.signUp({
+        email: newAdmin.email,
+        password: newAdmin.password,
+        options: {
+          data: {
+            name: newAdmin.name,
+            role: 'admin',
+          },
+        },
+      });
+      
+      if (signupError) throw signupError;
       
       toast({
         title: "Admin Added",
-        description: `${newAdmin.name} has been added as ${newAdmin.role}.`,
+        description: `${newAdmin.name} has been added as an administrator.`,
       });
       
       setNewAdmin({
         name: '',
         email: '',
-        role: 'Voter Admin',
+        password: '',
+        role: 'admin',
       });
-    } catch (error) {
+      
+      setTimeout(() => {
+        const fetchAdminAccounts = async () => {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('role', 'admin');
+            
+          if (error) throw error;
+          
+          const admins = data.map(profile => ({
+            id: profile.id,
+            name: profile.name,
+            email: '',
+            role: profile.role,
+            lastActive: profile.updated_at,
+            status: profile.status || 'active',
+            profileImage: profile.profile_image || '/placeholder.svg'
+          }));
+          
+          setAdminAccounts(admins);
+        };
+        
+        fetchAdminAccounts();
+      }, 2000);
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to add admin. Please try again.",
+        description: error.message || "Failed to add admin. Please try again.",
       });
     } finally {
       setIsAddingAdmin(false);
@@ -191,22 +291,36 @@ export default function AdminSettings() {
     if (!adminToRemove) return;
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'voter' })
+        .eq('id', adminToRemove.id);
+        
+      if (updateError) throw updateError;
       
       toast({
         title: "Admin Removed",
-        description: `${adminToRemove.name} has been removed successfully.`,
+        description: `${adminToRemove.name} has been removed from administrators.`,
       });
-    } catch (error) {
+      
+      setAdminAccounts(prev => prev.filter(admin => admin.id !== adminToRemove.id));
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to remove admin. Please try again.",
+        description: error.message || "Failed to remove admin. Please try again.",
       });
     } finally {
       setRemoveDialogOpen(false);
       setAdminToRemove(null);
     }
+  };
+  
+  const handleLanguageToggle = (langCode: string, enabled: boolean) => {
+    setEnabledLanguages(prev => ({
+      ...prev,
+      [langCode]: enabled
+    }));
   };
 
   return (
@@ -325,6 +439,20 @@ export default function AdminSettings() {
                       onCheckedChange={(checked) => handleSettingChange('ipLogging', checked)}
                     />
                   </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="publish-results">Publish Voting Results</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow admins to publish election results to voters
+                      </p>
+                    </div>
+                    <Switch
+                      id="publish-results"
+                      checked={platformSettings.publishVotingResults}
+                      onCheckedChange={(checked) => handleSettingChange('publishVotingResults', checked)}
+                    />
+                  </div>
                 </div>
                 
                 <Separator />
@@ -403,107 +531,73 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
           
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Languages</CardTitle>
-                <CardDescription>
-                  Configure available languages for the platform
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>English</span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Languages</CardTitle>
+              <CardDescription>
+                Configure available languages for the platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {indianLanguages.map((language) => (
+                    <div key={language.code} className="flex items-center justify-between p-2 border rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span>{language.name}</span>
+                      </div>
+                      <Switch 
+                        checked={!!enabledLanguages[language.code]} 
+                        onCheckedChange={(checked) => handleLanguageToggle(language.code, checked)}
+                      />
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>Spanish</span>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>French</span>
-                    </div>
-                    <Switch />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <span>German</span>
-                    </div>
-                    <Switch />
-                  </div>
+                  ))}
                 </div>
                 
                 <div className="mt-4">
                   <Label htmlFor="default-language">Default Language</Label>
-                  <Select defaultValue="english">
+                  <Select 
+                    value={defaultLanguage}
+                    onValueChange={setDefaultLanguage}
+                  >
                     <SelectTrigger id="default-language" className="mt-1.5">
                       <SelectValue placeholder="Select default language" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="spanish">Spanish</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                      <SelectItem value="german">German</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Configuration</CardTitle>
-                <CardDescription>
-                  Configure email settings for notifications
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="email-sender">Sender Email</Label>
-                  <Input
-                    id="email-sender"
-                    placeholder="noreply@yourvotingsystem.com"
-                    className="mt-1.5"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="email-service">Email Service</Label>
-                  <Select defaultValue="smtp">
-                    <SelectTrigger id="email-service" className="mt-1.5">
-                      <SelectValue placeholder="Select email service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="smtp">SMTP Server</SelectItem>
-                      <SelectItem value="mailgun">Mailgun</SelectItem>
-                      <SelectItem value="sendgrid">SendGrid</SelectItem>
-                      <SelectItem value="aws">Amazon SES</SelectItem>
+                      {indianLanguages
+                        .filter(lang => !!enabledLanguages[lang.code])
+                        .map(lang => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </SelectItem>
+                        ))
+                      }
                     </SelectContent>
                   </Select>
                 </div>
                 
-                <div className="pt-2">
-                  <Button variant="outline" className="w-full">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Test Email Configuration
+                <div className="flex justify-end mt-4">
+                  <Button 
+                    onClick={handleSaveSettings}
+                    disabled={isUpdatingSettings}
+                  >
+                    {isUpdatingSettings ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Language Settings
+                      </>
+                    )}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="admins" className="space-y-6 mt-6">
@@ -527,45 +621,64 @@ export default function AdminSettings() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {adminAccountsMock.map(admin => (
-                      <TableRow key={admin.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={admin.profileImage} alt={admin.name} />
-                              <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{admin.name}</div>
-                              <div className="text-sm text-muted-foreground">{admin.email}</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{admin.role}</TableCell>
-                        <TableCell>{new Date(admin.lastActive).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <span className="flex h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-                          Active
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setAdminToRemove({
-                                id: admin.id,
-                                name: admin.name
-                              });
-                              setRemoveDialogOpen(true);
-                            }}
-                            disabled={admin.id === '1'}
-                            className={admin.id === '1' ? 'opacity-50 cursor-not-allowed' : ''}
-                          >
-                            Remove
-                          </Button>
+                    {loadingAdmins ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                          <p className="mt-2 text-sm text-muted-foreground">Loading admin accounts...</p>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      adminAccounts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            <p className="text-muted-foreground">No admin accounts found.</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        adminAccounts.map(admin => (
+                          <TableRow key={admin.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar>
+                                  <AvatarImage src={admin.profileImage} alt={admin.name} />
+                                  <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{admin.name}</div>
+                                  <div className="text-sm text-muted-foreground">{admin.email}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{admin.role === 'admin' ? 'Administrator' : 'Voter'}</TableCell>
+                            <TableCell>{new Date(admin.lastActive).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <span className="flex items-center">
+                                <span className="flex h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+                                Active
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setAdminToRemove({
+                                    id: admin.id,
+                                    name: admin.name
+                                  });
+                                  setRemoveDialogOpen(true);
+                                }}
+                                disabled={admin.id === user?.id}
+                                className={admin.id === user?.id ? 'opacity-50 cursor-not-allowed' : ''}
+                              >
+                                Remove
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -607,26 +720,17 @@ export default function AdminSettings() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="admin-role">Admin Role</Label>
-                  <Select 
-                    value={newAdmin.role}
-                    onValueChange={(value) => handleNewAdminChange('role', value)}
-                  >
-                    <SelectTrigger id="admin-role">
-                      <SelectValue placeholder="Select admin role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Super Admin">Super Admin</SelectItem>
-                      <SelectItem value="Election Admin">Election Admin</SelectItem>
-                      <SelectItem value="Voter Admin">Voter Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="admin-password">Password</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    value={newAdmin.password}
+                    onChange={(e) => handleNewAdminChange('password', e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {newAdmin.role === 'Super Admin' 
-                      ? 'Full access to all platform features and settings.'
-                      : newAdmin.role === 'Election Admin'
-                      ? 'Can manage elections, but cannot modify system settings.'
-                      : 'Can manage and verify voters, but cannot modify elections or settings.'}
+                    Password must be at least 6 characters long
                   </p>
                 </div>
                 
@@ -738,7 +842,7 @@ export default function AdminSettings() {
                     <Database className="h-4 w-4 mr-2 text-muted-foreground" />
                     Database
                   </h3>
-                  <p className="text-sm text-muted-foreground">Connected - Last backup: 12 Apr 2024</p>
+                  <p className="text-sm text-muted-foreground">Connected - Last backup: 12 Apr 2025</p>
                 </div>
                 
                 <div>
@@ -792,31 +896,31 @@ export default function AdminSettings() {
                   </TableHeader>
                   <TableBody>
                     <TableRow>
-                      <TableCell>2024-04-12 10:45:22</TableCell>
+                      <TableCell>2025-04-12 10:45:22</TableCell>
                       <TableCell>Admin User</TableCell>
                       <TableCell>Updated platform settings</TableCell>
                       <TableCell>192.168.1.100</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>2024-04-11 14:30:00</TableCell>
+                      <TableCell>2025-04-11 14:30:00</TableCell>
                       <TableCell>Sarah Johnson</TableCell>
                       <TableCell>Created new election "Presidential Election 2025"</TableCell>
                       <TableCell>192.168.1.101</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>2024-04-11 09:15:45</TableCell>
+                      <TableCell>2025-04-11 09:15:45</TableCell>
                       <TableCell>David Rodriguez</TableCell>
                       <TableCell>Verified voter account "Michael Brown"</TableCell>
                       <TableCell>192.168.1.102</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>2024-04-10 16:20:15</TableCell>
+                      <TableCell>2025-04-10 16:20:15</TableCell>
                       <TableCell>Admin User</TableCell>
                       <TableCell>Added new admin "Sarah Johnson"</TableCell>
                       <TableCell>192.168.1.100</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>2024-04-09 11:05:33</TableCell>
+                      <TableCell>2025-04-09 11:05:33</TableCell>
                       <TableCell>System</TableCell>
                       <TableCell>Failed login attempt for admin account</TableCell>
                       <TableCell>203.0.113.42</TableCell>
@@ -837,51 +941,11 @@ export default function AdminSettings() {
             <CardHeader>
               <CardTitle>Help & Support</CardTitle>
               <CardDescription>
-                Support resources and documentation
+                Support center for voter assistance
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start space-x-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <HelpCircle className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium">Admin Documentation</h3>
-                  <p className="text-sm text-muted-foreground">
-                    View comprehensive documentation for platform administration
-                  </p>
-                  <Button variant="link" className="px-0 h-auto">
-                    View Admin Guide
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <User className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium">User Documentation</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Documentation for voters using the platform
-                  </p>
-                  <Button variant="link" className="px-0 h-auto">
-                    View Voter Guide
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="rounded-md bg-muted p-4 mt-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-sm font-medium">Technical Support</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Contact our technical support team
-                    </p>
-                  </div>
-                  <Button>Contact Support</Button>
-                </div>
-              </div>
+            <CardContent>
+              <AdminSupportCenter />
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,288 +1,272 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useVoter } from '@/contexts/VoterContext';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { 
-  Avatar, 
-  AvatarFallback, 
-  AvatarImage 
-} from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserRole, UserStatus } from '@/contexts/AuthContext';
+import { Download, Filter, RefreshCw, UserCheck, UserMinus, UserPlus, Search } from 'lucide-react';
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from '@/components/ui/table';
+import { 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { 
-  Select, 
-  SelectContent, 
-  SelectGroup, 
-  SelectItem, 
-  SelectLabel, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  CheckCircle, 
-  Clock, 
-  Download, 
-  Lock, 
-  MoreHorizontal, 
-  Search, 
-  ShieldCheck, 
-  Unlock, 
-  Users, 
-  XCircle 
-} from 'lucide-react';
-import { UserRole } from '@/contexts/AuthContext';
+  AlertDialog, AlertDialogAction, AlertDialogCancel, 
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter, 
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 
-export default function VoterManagement() {
-  const { voters, updateVoterStatus, updateVoterVerification, updateVoterRole } = useVoter();
-  
-  // Search and filter state
+const VoterManagement = () => {
+  const { 
+    voters, 
+    updateVoterStatus, 
+    updateVoterVerification, 
+    updateVoterRole, 
+    searchVoters, 
+    filterVoters,
+    exportVotersList,
+    loading 
+  } = useVoter();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
-  const [filterVerified, setFilterVerified] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogAction, setDialogAction] = useState<{
-    type: 'block' | 'unblock' | 'verify' | 'unverify' | 'changeRole';
-    voterId: string;
-    voterName: string;
-    newRole?: UserRole;
-  } | null>(null);
-  
-  // Filter and sort the voters
-  const filteredVoters = voters.filter(voter => {
-    // Search query filter
-    const searchMatch = searchQuery === '' ||
-      voter.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      voter.email.toLowerCase().includes(searchQuery.toLowerCase());
+  const [activeFilter, setActiveFilter] = useState<UserStatus | 'all'>('all');
+  const [verifiedFilter, setVerifiedFilter] = useState<boolean | 'all'>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // The data is automatically refreshed by the context
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const handleExport = () => {
+    exportVotersList();
+  };
+
+  const filteredVoters = React.useMemo(() => {
+    let results = searchQuery ? searchVoters(searchQuery) : voters;
     
-    // Role filter
-    const roleMatch = filterRole === 'all' || voter.role === filterRole;
+    if (activeFilter !== 'all') {
+      results = results.filter(voter => voter.status === activeFilter);
+    }
     
-    // Verification filter
-    const verifiedMatch = filterVerified === 'all' ||
-      (filterVerified === 'verified' && voter.verified) ||
-      (filterVerified === 'unverified' && !voter.verified);
+    if (verifiedFilter !== 'all') {
+      results = results.filter(voter => voter.verified === verifiedFilter);
+    }
     
-    // Status filter
-    const statusMatch = filterStatus === 'all' ||
-      (filterStatus === 'active' && voter.status === 'active') ||
-      (filterStatus === 'blocked' && voter.status === 'blocked');
-    
-    return searchMatch && roleMatch && verifiedMatch && statusMatch;
-  });
-  
-  // Sort by most recently active
-  const sortedVoters = [...filteredVoters].sort(
-    (a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
+    return results;
+  }, [voters, searchQuery, activeFilter, verifiedFilter, searchVoters]);
+
+  const activeVoters = voters.filter(voter => voter.status === 'active');
+  const blockedVoters = voters.filter(voter => voter.status === 'blocked');
+  const verifiedVoters = voters.filter(voter => voter.verified);
+  const unverifiedVoters = voters.filter(voter => !voter.verified);
+
+  const renderVoterRow = (voter: any) => (
+    <TableRow key={voter.id}>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarImage src={voter.profileImage} alt={voter.name} />
+            <AvatarFallback>{voter.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="font-medium">{voter.name}</div>
+            <div className="text-sm text-muted-foreground">{voter.email}</div>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge 
+          variant={voter.role === 'admin' ? 'default' : 'secondary'}
+        >
+          {voter.role === 'admin' ? 'Admin' : 'Voter'}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge 
+          variant={voter.verified ? 'success' : 'outline'}
+        >
+          {voter.verified ? 'Verified' : 'Unverified'}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge 
+          variant={voter.status === 'active' ? 'success' : 'destructive'}
+        >
+          {voter.status === 'active' ? 'Active' : 'Blocked'}
+        </Badge>
+      </TableCell>
+      <TableCell>{format(new Date(voter.registeredDate), 'MMM d, yyyy')}</TableCell>
+      <TableCell>{voter.votingHistory.length}</TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem 
+              onClick={() => updateVoterVerification(voter.id, !voter.verified)}
+            >
+              {voter.verified ? 'Remove Verification' : 'Verify User'}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => updateVoterStatus(voter.id, voter.status === 'active' ? 'blocked' : 'active')}
+            >
+              {voter.status === 'active' ? 'Block User' : 'Activate User'}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => updateVoterRole(voter.id, voter.role === 'admin' ? 'voter' : 'admin')}
+            >
+              {voter.role === 'admin' ? 'Make Voter' : 'Make Admin'}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
   );
-  
-  const handleActionConfirm = async () => {
-    if (!dialogAction) return;
-    
-    try {
-      switch (dialogAction.type) {
-        case 'block':
-          await updateVoterStatus(dialogAction.voterId, 'blocked');
-          break;
-        case 'unblock':
-          await updateVoterStatus(dialogAction.voterId, 'active');
-          break;
-        case 'verify':
-          await updateVoterVerification(dialogAction.voterId, true);
-          break;
-        case 'unverify':
-          await updateVoterVerification(dialogAction.voterId, false);
-          break;
-        case 'changeRole':
-          if (dialogAction.newRole) {
-            await updateVoterRole(dialogAction.voterId, dialogAction.newRole);
-          }
-          break;
-      }
-    } catch (error) {
-      console.error('Error performing action:', error);
-    } finally {
-      setDialogOpen(false);
-      setDialogAction(null);
-    }
-  };
-  
-  const getActionVerb = (actionType: string) => {
-    switch (actionType) {
-      case 'block': return 'block';
-      case 'unblock': return 'unblock';
-      case 'verify': return 'verify';
-      case 'unverify': return 'unverify';
-      case 'changeRole': return 'change the role of';
-      default: return 'update';
-    }
-  };
-  
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Voter Management</h1>
-        <p className="text-muted-foreground">
-          View, verify, and manage all registered voters
-        </p>
-      </div>
-      
-      {/* Filters and Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Filter and search for specific voters
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+  const renderSkeletonRows = (count: number) => (
+    Array(count).fill(0).map((_, i) => (
+      <TableRow key={i}>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
             <div>
-              <Label htmlFor="search">Search</Label>
-              <div className="relative mt-1.5">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search by name or email"
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="filter-role">Role</Label>
-              <Select
-                value={filterRole}
-                onValueChange={(value) => setFilterRole(value as UserRole | 'all')}
-              >
-                <SelectTrigger id="filter-role" className="mt-1.5">
-                  <SelectValue placeholder="Filter by role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>User Roles</SelectLabel>
-                    <SelectItem value="all">All Roles</SelectItem>
-                    <SelectItem value="voter">Voters</SelectItem>
-                    <SelectItem value="admin">Administrators</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="filter-verified">Verification</Label>
-              <Select
-                value={filterVerified}
-                onValueChange={setFilterVerified}
-              >
-                <SelectTrigger id="filter-verified" className="mt-1.5">
-                  <SelectValue placeholder="Filter by verification" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Verification Status</SelectLabel>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="unverified">Unverified</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="filter-status">Status</Label>
-              <Select
-                value={filterStatus}
-                onValueChange={setFilterStatus}
-              >
-                <SelectTrigger id="filter-status" className="mt-1.5">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Account Status</SelectLabel>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24 mt-1" />
             </div>
           </div>
-          
-          <div className="flex justify-between mt-6">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSearchQuery('');
-                setFilterRole('all');
-                setFilterVerified('all');
-                setFilterStatus('all');
-              }}
-            >
-              Reset Filters
-            </Button>
-            
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export User List
-            </Button>
+        </TableCell>
+        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+        <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+      </TableRow>
+    ))
+  );
+
+  return (
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Voter Management</h1>
+        <p className="text-muted-foreground">Manage and monitor all registered voters</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
+        <div className="flex-1 relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            className="pl-8"
+            value={searchQuery}
+            onChange={handleSearch}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline">
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+          </Button>
+          <Button>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Voter
+          </Button>
+        </div>
+      </div>
+
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle>Voter Statistics</CardTitle>
+          <CardDescription>Overview of voter accounts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-card p-4 rounded-lg border text-center">
+              <h3 className="text-xl md:text-2xl font-bold">{voters.length}</h3>
+              <p className="text-muted-foreground text-sm">Total Users</p>
+            </div>
+            <div className="bg-card p-4 rounded-lg border text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-green-600">{activeVoters.length}</h3>
+              <p className="text-muted-foreground text-sm">Active Users</p>
+            </div>
+            <div className="bg-card p-4 rounded-lg border text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-yellow-600">{verifiedVoters.length}</h3>
+              <p className="text-muted-foreground text-sm">Verified Users</p>
+            </div>
+            <div className="bg-card p-4 rounded-lg border text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-red-600">{blockedVoters.length}</h3>
+              <p className="text-muted-foreground text-sm">Blocked Users</p>
+            </div>
           </div>
         </CardContent>
       </Card>
-      
-      {/* Voters Table */}
+
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
               <CardTitle>Registered Voters</CardTitle>
               <CardDescription>
-                Showing {sortedVoters.length} of {voters.length} total voters
+                {loading ? 'Loading voters data...' : `Showing ${filteredVoters.length} of ${voters.length} voters`}
               </CardDescription>
             </div>
-            <Button>
-              <Users className="mr-2 h-4 w-4" />
-              Add New Voter
-            </Button>
+            <div className="flex items-center gap-4 mt-2 sm:mt-0">
+              <div className="flex items-center gap-2">
+                <Switch 
+                  id="verified-filter" 
+                  checked={verifiedFilter === true} 
+                  onCheckedChange={() => {
+                    setVerifiedFilter(curr => {
+                      if (curr === 'all') return true;
+                      if (curr === true) return false;
+                      return 'all';
+                    });
+                  }} 
+                />
+                <Label htmlFor="verified-filter">Verified</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch 
+                  id="active-filter" 
+                  checked={activeFilter === 'active'} 
+                  onCheckedChange={() => {
+                    setActiveFilter(curr => {
+                      if (curr === 'all') return 'active';
+                      if (curr === 'active') return 'blocked';
+                      return 'all';
+                    });
+                  }} 
+                />
+                <Label htmlFor="active-filter">Active</Label>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -290,220 +274,34 @@ export default function VoterManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Verification</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Registered</TableHead>
-                  <TableHead>Voting History</TableHead>
-                  <TableHead>Last Active</TableHead>
+                  <TableHead>Votes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedVoters.length > 0 ? (
-                  sortedVoters.map(voter => (
-                    <TableRow key={voter.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={voter.profileImage} alt={voter.name} />
-                            <AvatarFallback>{voter.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{voter.name}</div>
-                            <div className="text-sm text-muted-foreground">{voter.email}</div>
-                            <div className="flex items-center gap-1 mt-1">
-                              {voter.role === 'admin' ? (
-                                <Badge variant="outline" className="bg-primary/10 text-primary">
-                                  Admin
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline">Voter</Badge>
-                              )}
-                              
-                              {voter.verified ? (
-                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                  Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
-                                  <Clock className="mr-1 h-3 w-3" />
-                                  Unverified
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {voter.status === 'active' ? (
-                          <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
-                            Blocked
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(voter.registeredDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        {voter.votingHistory.length} elections
-                      </TableCell>
-                      <TableCell>
-                        {new Date(voter.lastActive).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            
-                            {/* Verification actions */}
-                            {voter.verified ? (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'unverify',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                <span>Unverify User</span>
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'verify',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                <span>Verify User</span>
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Account status actions */}
-                            {voter.status === 'active' ? (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'block',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <Lock className="mr-2 h-4 w-4" />
-                                <span>Block User</span>
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'unblock',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <Unlock className="mr-2 h-4 w-4" />
-                                <span>Unblock User</span>
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Role change actions */}
-                            {voter.role === 'voter' ? (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'changeRole',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                    newRole: 'admin',
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <ShieldCheck className="mr-2 h-4 w-4" />
-                                <span>Promote to Admin</span>
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setDialogAction({
-                                    type: 'changeRole',
-                                    voterId: voter.id,
-                                    voterName: voter.name,
-                                    newRole: 'voter',
-                                  });
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <Users className="mr-2 h-4 w-4" />
-                                <span>Demote to Voter</span>
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                {loading 
+                  ? renderSkeletonRows(5)
+                  : filteredVoters.length === 0 
+                  ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        No voters found
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      No voters found matching the current filters.
-                    </TableCell>
-                  </TableRow>
-                )}
+                  )
+                  : filteredVoters.map(renderVoterRow)}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
-      
-      {/* Confirmation Dialog */}
-      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Confirm Action
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to {getActionVerb(dialogAction?.type || '')} {dialogAction?.voterName}?
-              {dialogAction?.type === 'changeRole' && dialogAction.newRole && (
-                <p className="mt-2">
-                  This will change their role from <strong>{dialogAction.newRole === 'admin' ? 'Voter' : 'Administrator'}</strong> to <strong>{dialogAction.newRole === 'admin' ? 'Administrator' : 'Voter'}</strong>.
-                </p>
-              )}
-              This action can be reversed later if needed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleActionConfirm}>
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
-}
+};
+
+export default VoterManagement;
