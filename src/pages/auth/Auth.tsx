@@ -1,320 +1,282 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { DarkModeToggle } from '@/components/layout/DarkModeToggle';
-import { Loader2, Mail, Lock, User, ChevronRight, Vote } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { LockIcon, MailIcon, UserIcon, KeyIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 
 export default function Auth() {
-  const { login, signup, isLoading, user } = useAuth();
-  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const { login, signup, user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
-  // Signup form state
-  const [signupName, setSignupName] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
-  const [signupRole, setSignupRole] = useState<'voter' | 'admin'>('voter');
-  const [signupError, setSignupError] = useState('');
-
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      if (user.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/voter');
-      }
+  // Redirect if already logged in
+  if (user) {
+    if (user.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/voter');
     }
-  }, [user, navigate]);
-
+    return null;
+  }
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError('');
     
-    try {
-      await login(loginEmail, loginPassword);
-      // Navigation is handled by the useEffect above
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setLoginError(error.message || 'Login failed. Please try again.');
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSignupError('');
-    
-    if (signupPassword !== signupConfirmPassword) {
-      setSignupError('Passwords do not match');
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
       return;
     }
     
+    setIsLoading(true);
+    
     try {
-      await signup(signupName, signupEmail, signupPassword, signupRole);
-      // Navigation is handled by the useEffect above
+      await login(email, password);
+      toast({
+        title: "Success",
+        description: "You have successfully logged in",
+      });
     } catch (error: any) {
-      console.error('Signup error:', error);
-      setSignupError(error.message || 'Signup failed. Please try again.');
+      console.error('Login error:', error);
+      toast({
+        title: "Login Failed",
+        description: error.message || "An error occurred during login",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password || !name) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await signup(email, password, name);
+      toast({
+        title: "Account Created",
+        description: "Your account has been created successfully",
+      });
+      setActiveTab("login");
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute top-4 right-4">
-        <DarkModeToggle />
-      </div>
-      
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="flex justify-center items-center">
-            <Vote className="h-10 w-10 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold mt-2">VoteSphere</h1>
-          <p className="text-muted-foreground">Secure, transparent online voting platform</p>
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-secondary/10 animate-fade-in">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center animate-scale-in">
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
+            Election System
+          </h1>
+          <p className="text-muted-foreground max-w-xs mx-auto">
+            Secure, transparent, and efficient digital voting platform
+          </p>
         </div>
-        
-        <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
+
+        <Card className="shadow-lg border-primary/10 animate-slide-in-right">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">
+              {activeTab === 'login' ? 'Welcome Back' : 'Create an Account'}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {activeTab === 'login' 
+                ? 'Enter your credentials to access your account' 
+                : 'Sign up to start using our platform'}
+            </CardDescription>
+          </CardHeader>
           
-          <TabsContent value="login">
-            <Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
               <form onSubmit={handleLogin}>
-                <CardHeader>
-                  <CardTitle>Welcome back</CardTitle>
-                  <CardDescription>
-                    Sign in to access your account
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <MailIcon className="w-4 h-4" />
+                      Email
+                    </Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="login-email"
+                        id="email"
                         type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
                         className="pl-10"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
                         required
                       />
+                      <MailIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor="login-password">Password</Label>
-                      <span className="text-xs text-primary hover:underline cursor-pointer">
-                        Forgot password?
-                      </span>
-                    </div>
+                    <Label htmlFor="password" className="flex items-center gap-2">
+                      <LockIcon className="w-4 h-4" />
+                      Password
+                    </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="login-password"
+                        id="password"
                         type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         className="pl-10"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
                         required
                       />
+                      <KeyIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
-                  
-                  {loginError && (
-                    <div className="text-sm text-destructive">{loginError}</div>
-                  )}
                 </CardContent>
                 
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full transition-all hover:scale-105 active:scale-95"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
+                      <div className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                        Logging in...
+                      </div>
                     ) : (
-                      <>
-                        Sign In
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </>
+                      <div className="flex items-center justify-center gap-2">
+                        Log in
+                        <ArrowRightIcon className="w-4 h-4" />
+                      </div>
                     )}
                   </Button>
                 </CardFooter>
               </form>
-            </Card>
+            </TabsContent>
             
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              <span>Don't have an account? </span>
-              <span
-                className="text-primary cursor-pointer hover:underline"
-                onClick={() => setActiveTab('signup')}
-              >
-                Sign up
-              </span>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="signup">
-            <Card>
+            <TabsContent value="signup">
               <form onSubmit={handleSignup}>
-                <CardHeader>
-                  <CardTitle>Create an account</CardTitle>
-                  <CardDescription>
-                    Enter your information to get started
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="name" className="flex items-center gap-2">
+                      <UserIcon className="w-4 h-4" />
+                      Full Name
+                    </Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="John Smith"
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="John Doe"
                         className="pl-10"
-                        value={signupName}
-                        onChange={(e) => setSignupName(e.target.value)}
                         required
                       />
+                      <UserIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="flex items-center gap-2">
+                      <MailIcon className="w-4 h-4" />
+                      Email
+                    </Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="signup-email"
                         type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
                         className="pl-10"
-                        value={signupEmail}
-                        onChange={(e) => setSignupEmail(e.target.value)}
                         required
                       />
+                      <MailIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password" className="flex items-center gap-2">
+                      <LockIcon className="w-4 h-4" />
+                      Password
+                    </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="signup-password"
                         type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         className="pl-10"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
                         required
                       />
+                      <KeyIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signup-confirm-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={signupConfirmPassword}
-                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-role">Account Type</Label>
-                    <Select
-                      value={signupRole}
-                      onValueChange={(value) => setSignupRole(value as 'voter' | 'admin')}
-                    >
-                      <SelectTrigger id="signup-role">
-                        <SelectValue placeholder="Select account type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="voter">Voter</SelectItem>
-                        <SelectItem value="admin">Administrator</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Administrator accounts may require additional verification.
-                    </p>
-                  </div>
-                  
-                  {signupError && (
-                    <div className="text-sm text-destructive">{signupError}</div>
-                  )}
                 </CardContent>
                 
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full transition-all hover:scale-105 active:scale-95"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <div className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
                         Creating account...
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="flex items-center justify-center gap-2">
                         Create Account
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </>
+                        <CheckCircleIcon className="w-4 h-4" />
+                      </div>
                     )}
                   </Button>
                 </CardFooter>
               </form>
-            </Card>
-            
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              <span>Already have an account? </span>
-              <span
-                className="text-primary cursor-pointer hover:underline"
-                onClick={() => setActiveTab('login')}
-              >
-                Sign in
-              </span>
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        </Card>
+        
+        <div className="text-center text-sm text-muted-foreground animate-fade-in">
+          <p>Protected by encrypted authentication and storage.</p>
+        </div>
       </div>
     </div>
   );

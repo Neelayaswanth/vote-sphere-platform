@@ -7,13 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Search, Send } from 'lucide-react';
+import { Loader2, MessageSquare, Search, Send } from 'lucide-react';
 import { useSupport, SupportMessage } from '@/contexts/SupportContext';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function AdminSupportCenter() {
-  const { adminThreads, activeThread, setActiveThread, sendMessage, markThreadAsRead } = useSupport();
+  const { adminThreads, activeThread, setActiveThread, sendMessage, markThreadAsRead, loading } = useSupport();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,8 +42,15 @@ export default function AdminSupportCenter() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [activeThread]);
+
+  // Debug logs to help diagnose support threads issues
+  useEffect(() => {
+    console.log("Admin Support Center - Current adminThreads:", adminThreads);
+    console.log("Admin Support Center - Active Thread:", activeThread);
+  }, [adminThreads, activeThread]);
   
   const handleThreadClick = (thread: typeof activeThread) => {
+    console.log("Setting active thread:", thread);
     setActiveThread(thread);
     // Mark thread as read when opened
     if (thread && thread.unreadCount > 0) {
@@ -102,6 +109,15 @@ export default function AdminSupportCenter() {
     </div>
   );
   
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Loading support messages...</span>
+      </div>
+    );
+  }
+  
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Thread List */}
@@ -120,7 +136,7 @@ export default function AdminSupportCenter() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Tabs defaultValue="unread" className="w-full">
+          <Tabs defaultValue="all" className="w-full">
             <TabsList className="w-full">
               <TabsTrigger className="flex-1" value="unread">
                 Unread ({unreadThreads.length})
@@ -174,9 +190,13 @@ export default function AdminSupportCenter() {
             
             <TabsContent value="all" className="m-0">
               <ScrollArea className="h-[400px]">
-                {sortedThreads.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-muted-foreground">
-                    No conversations found
+                {adminThreads.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-muted-foreground flex flex-col items-center gap-3">
+                    <MessageSquare className="h-10 w-10 text-muted-foreground/50" />
+                    <p>No support conversations found</p>
+                    <p className="text-xs text-muted-foreground/70">
+                      When voters send support messages, they will appear here
+                    </p>
                   </div>
                 ) : (
                   <div className="divide-y">
@@ -250,7 +270,13 @@ export default function AdminSupportCenter() {
           {activeThread ? (
             <>
               <ScrollArea className="h-[350px] px-4 py-3">
-                {activeThread.messages.map(renderMessage)}
+                {activeThread.messages.length === 0 ? (
+                  <div className="flex justify-center items-center h-full text-muted-foreground">
+                    No messages found
+                  </div>
+                ) : (
+                  activeThread.messages.map(renderMessage)
+                )}
                 <div ref={messagesEndRef} />
               </ScrollArea>
               
@@ -280,10 +306,13 @@ export default function AdminSupportCenter() {
               </div>
             </>
           ) : (
-            <div className="px-4 py-8 text-center">
-              <p className="text-muted-foreground">
-                Select a conversation from the list to view messages
-              </p>
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
+                <p className="text-muted-foreground text-lg">
+                  Select a conversation from the list to view messages
+                </p>
+              </div>
             </div>
           )}
         </CardContent>
