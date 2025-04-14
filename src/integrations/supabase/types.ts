@@ -114,6 +114,7 @@ export type Database = {
           name: string
           profile_image: string | null
           role: string
+          status: string | null
           updated_at: string
           verified: boolean
         }
@@ -123,6 +124,7 @@ export type Database = {
           name: string
           profile_image?: string | null
           role: string
+          status?: string | null
           updated_at?: string
           verified?: boolean
         }
@@ -132,8 +134,42 @@ export type Database = {
           name?: string
           profile_image?: string | null
           role?: string
+          status?: string | null
           updated_at?: string
           verified?: boolean
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_from_admin: boolean
+          message: string
+          read: boolean
+          receiver_id: string | null
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_from_admin?: boolean
+          message: string
+          read?: boolean
+          receiver_id?: string | null
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_from_admin?: boolean
+          message?: string
+          read?: boolean
+          receiver_id?: string | null
+          sender_id?: string
+          sender_name?: string
         }
         Relationships: []
       }

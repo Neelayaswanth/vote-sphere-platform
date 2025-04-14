@@ -72,10 +72,10 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
         if (error) throw error;
         
-        setUserMessages(data || []);
+        setUserMessages(data as SupportMessage[] || []);
         
         // Count unread messages from admins
-        const unreadCount = (data || []).filter(msg => 
+        const unreadCount = (data || []).filter((msg: SupportMessage) => 
           msg.is_from_admin && !msg.read && msg.receiver_id === user.id
         ).length;
         
@@ -94,8 +94,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // Get all unique user IDs
         const userIds = [...new Set(
           (data || [])
-            .filter(msg => !msg.is_from_admin)
-            .map(msg => msg.sender_id)
+            .filter((msg: SupportMessage) => !msg.is_from_admin)
+            .map((msg: SupportMessage) => msg.sender_id)
         )];
         
         // Create threads for each user
@@ -110,7 +110,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const userName = userData?.name || 'Unknown User';
           
           // Get messages for this user
-          const userMessages = (data || []).filter(msg => 
+          const userMessages = (data || []).filter((msg: SupportMessage) => 
             (msg.sender_id === userId && !msg.is_from_admin) || 
             (msg.receiver_id === userId && msg.is_from_admin)
           );
@@ -121,7 +121,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const lastMessageTime = lastMessageObj?.created_at || '';
           
           // Count unread messages
-          const unreadCount = userMessages.filter(msg => 
+          const unreadCount = userMessages.filter((msg: SupportMessage) => 
             !msg.is_from_admin && !msg.read
           ).length;
           

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useVoter } from '@/contexts/VoterContext';
 import { Button } from '@/components/ui/button';
@@ -106,7 +105,7 @@ const VoterManagement = () => {
       </TableCell>
       <TableCell>
         <Badge 
-          variant={voter.status === 'active' ? 'success' : 'destructive'}
+          variant={voter.status === 'active' ? 'default' : 'destructive'}
         >
           {voter.status === 'active' ? 'Active' : 'Blocked'}
         </Badge>
