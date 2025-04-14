@@ -5,38 +5,7 @@ import { DarkModeToggle } from './DarkModeToggle'
 
 // Basic site config
 const siteConfig = {
-  name: "Election System",
-  mainNav: [
-    {
-      title: "Home",
-      href: "/",
-    },
-    {
-      title: "Voter",
-      href: "/voter",
-    },
-    {
-      title: "Admin",
-      href: "/admin",
-    },
-  ]
-}
-
-// Simple MainNav component
-const MainNav = ({ items }: { items: { title: string; href: string }[] }) => {
-  return (
-    <nav className="flex items-center space-x-4 lg:space-x-6">
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          to={item.href}
-          className="nav-link hover:text-primary"
-        >
-          {item.title}
-        </Link>
-      ))}
-    </nav>
-  )
+  name: "Election System"
 }
 
 interface RootLayoutProps {
@@ -48,9 +17,8 @@ const RootLayout = ({ children }: RootLayoutProps) => {
     <div className="flex min-h-screen flex-col">
       <header className="container z-40 bg-background">
         <div className="flex h-20 items-center justify-between py-6">
-          <MainNav items={siteConfig.mainNav} />
-          <Link to="/" className="mr-6 flex items-center space-x-2">
-            <span className="hidden font-bold sm:inline-block">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="font-bold">
               {siteConfig.name}
             </span>
           </Link>

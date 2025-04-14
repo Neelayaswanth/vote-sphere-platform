@@ -95,14 +95,30 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         console.log("Retrieved support messages:", data);
         
+        if (!data || data.length === 0) {
+          console.log("No support messages found");
+          setAdminThreads([]);
+          setUnreadMessagesCount(0);
+          setLoading(false);
+          return;
+        }
+        
         // Get all unique user IDs from non-admin messages (senders)
         const userIds = [...new Set(
-          (data || [])
+          data
             .filter((msg: SupportMessage) => !msg.is_from_admin)
             .map((msg: SupportMessage) => msg.sender_id)
         )];
         
         console.log("Unique user IDs:", userIds);
+        
+        if (userIds.length === 0) {
+          console.log("No user threads found");
+          setAdminThreads([]);
+          setUnreadMessagesCount(0);
+          setLoading(false);
+          return;
+        }
         
         // Create threads for each user
         const threads = await Promise.all(userIds.map(async (userId) => {
@@ -116,7 +132,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const userName = userData?.name || 'Unknown User';
           
           // Get messages for this user (incoming and outgoing)
-          const userMessages = (data || []).filter((msg: SupportMessage) => 
+          const userMessages = data.filter((msg: SupportMessage) => 
             (msg.sender_id === userId && !msg.is_from_admin) || 
             (msg.receiver_id === userId && msg.is_from_admin)
           );
