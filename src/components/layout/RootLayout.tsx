@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import LanguageSelector from './LanguageSelector'
@@ -62,7 +61,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
         </div>
       </header>
       <main className="container relative pt-20 md:pt-24">{children}</main>
-      <footer className="bg-background py-10 md:py-12">
+      <footer className="bg-background py-10 md:py:12">
         <div className="container">
           <div className="border-t py-4 text-center text-sm text-muted-foreground">
             {/* Footer content here */}

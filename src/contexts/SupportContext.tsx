@@ -83,6 +83,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } 
       // For an admin, fetch all threads grouped by user
       else if (user.role === 'admin') {
+        console.log("Fetching support messages for admin");
+        
         // Get all messages
         const { data, error } = await supabase
           .from('support_messages')
@@ -91,12 +93,16 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
         if (error) throw error;
         
-        // Get all unique user IDs
+        console.log("Retrieved support messages:", data);
+        
+        // Get all unique user IDs from non-admin messages (senders)
         const userIds = [...new Set(
           (data || [])
             .filter((msg: SupportMessage) => !msg.is_from_admin)
             .map((msg: SupportMessage) => msg.sender_id)
         )];
+        
+        console.log("Unique user IDs:", userIds);
         
         // Create threads for each user
         const threads = await Promise.all(userIds.map(async (userId) => {
@@ -109,10 +115,15 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             
           const userName = userData?.name || 'Unknown User';
           
-          // Get messages for this user
+          // Get messages for this user (incoming and outgoing)
           const userMessages = (data || []).filter((msg: SupportMessage) => 
             (msg.sender_id === userId && !msg.is_from_admin) || 
             (msg.receiver_id === userId && msg.is_from_admin)
+          );
+          
+          // Sort messages by created_at
+          userMessages.sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
           
           // Get last message
@@ -120,7 +131,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const lastMessage = lastMessageObj?.message || '';
           const lastMessageTime = lastMessageObj?.created_at || '';
           
-          // Count unread messages
+          // Count unread messages (from non-admin users that haven't been read)
           const unreadCount = userMessages.filter((msg: SupportMessage) => 
             !msg.is_from_admin && !msg.read
           ).length;
@@ -134,6 +145,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             unreadCount
           };
         }));
+        
+        console.log("Created threads:", threads);
         
         setAdminThreads(threads);
         
