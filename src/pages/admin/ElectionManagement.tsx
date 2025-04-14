@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, PlusCircle, Edit, Trash2, RefreshCw } from 'lucide-react';
@@ -13,17 +12,16 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const ElectionManagement = () => {
-  const { elections, deleteElection, loading } = useElection();
+  const { elections, deleteElection, loading, endElection } = useElection();
   const [refreshing, setRefreshing] = useState(false);
+  const [electionToEnd, setElectionToEnd] = useState<string | null>(null);
 
-  // Filter elections by status
   const upcomingElections = elections.filter(election => election.status === 'upcoming');
   const activeElections = elections.filter(election => election.status === 'active');
   const completedElections = elections.filter(election => election.status === 'completed');
 
   const refreshData = () => {
     setRefreshing(true);
-    // The data is automatically refreshed by the context
     setTimeout(() => setRefreshing(false), 1000);
   };
 
@@ -45,6 +43,13 @@ const ElectionManagement = () => {
       await deleteElection(id);
     } catch (error) {
       console.error('Error deleting election:', error);
+    }
+  };
+
+  const handleEndElection = async () => {
+    if (electionToEnd) {
+      await endElection(electionToEnd);
+      setElectionToEnd(null);
     }
   };
 
@@ -99,6 +104,34 @@ const ElectionManagement = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        {election.status === 'active' && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="mr-2"
+              >
+                End Election
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>End Election</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to end this election now? This action cannot be undone.
+                  Voters will no longer be able to cast votes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => endElection(election.id)}>
+                  End Election
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </CardFooter>
     </Card>
   );

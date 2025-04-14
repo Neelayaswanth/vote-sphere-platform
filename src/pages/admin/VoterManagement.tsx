@@ -158,6 +158,17 @@ export default function VoterManagement() {
     }
   };
   
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'default';
+      case 'blocked':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+  
   const VoterItem = ({ voter, onVerify, onBlock, onUnblock }) => {
     return (
       <TableRow>
@@ -181,7 +192,7 @@ export default function VoterManagement() {
         </TableCell>
         <TableCell>
           <Badge 
-            variant={voter.status === 'active' ? 'default' : 'destructive'}
+            variant={getStatusBadgeVariant(voter.status)}
           >
             {voter.status === 'active' ? 'Active' : 'Blocked'}
           </Badge>

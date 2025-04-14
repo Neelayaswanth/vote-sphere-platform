@@ -45,6 +45,7 @@ interface ElectionContextType {
   addCandidate: (electionId: string, candidateData: Omit<Candidate, 'id' | 'votes'>) => Promise<void>;
   updateCandidate: (candidateId: string, candidateData: Partial<Candidate>) => Promise<void>;
   deleteCandidate: (candidateId: string) => Promise<void>;
+  endElection: (id: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -715,6 +716,70 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const endElection = async (id: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to end an election.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (user.role !== 'admin') {
+      toast({
+        title: "Error",
+        description: "Only administrators can end elections.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      console.log("Ending election:", id);
+      
+      const now = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from('elections')
+        .update({ end_date: now })
+        .eq('id', id);
+
+      if (error) {
+        console.error("Error ending election:", error);
+        throw error;
+      }
+      
+      console.log("Election ended successfully");
+
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        action: 'end_election',
+        details: { election_id: id }
+      });
+
+      setElections(prev => 
+        prev.map(election => 
+          election.id === id 
+            ? { ...election, endDate: now, status: 'completed' as const } 
+            : election
+        )
+      );
+
+      toast({
+        title: "Success",
+        description: "Election has been ended successfully.",
+      });
+    } catch (error: any) {
+      console.error('Error ending election:', error);
+      toast({
+        title: "Error",
+        description: `Failed to end election: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   const value = {
     elections,
     userVotes,
@@ -727,6 +792,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     addCandidate,
     updateCandidate,
     deleteCandidate,
+    endElection,
     loading
   };
 
