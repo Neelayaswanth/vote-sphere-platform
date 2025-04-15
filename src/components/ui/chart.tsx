@@ -103,14 +103,20 @@ const ChartTooltip = RechartsPrimitive.Tooltip
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
-      hideLabel?: boolean
-      hideIndicator?: boolean
-      indicator?: "line" | "dot" | "dashed"
-      nameKey?: string
-      labelKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    hideLabel?: boolean
+    hideIndicator?: boolean
+    indicator?: "line" | "dot" | "dashed"
+    nameKey?: string
+    labelKey?: string
+    active?: boolean
+    payload?: any[]
+    label?: string
+    formatter?: (value: any, name?: string, props?: any, index?: number, data?: any) => React.ReactNode
+    labelFormatter?: (value: any, data?: any) => React.ReactNode
+    color?: string
+    labelClassName?: string
+  }
 >(
   (
     {
@@ -259,11 +265,12 @@ const ChartLegend = RechartsPrimitive.Legend
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    payload?: any[]
+    verticalAlign?: "top" | "middle" | "bottom"
+    hideIcon?: boolean
+    nameKey?: string
+  }
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
@@ -371,7 +378,7 @@ export function BarChart(props: any) {
   } = props;
 
   const config = React.useMemo(() => {
-    return categories.reduce<ChartConfig>((acc, category, i) => {
+    return categories.reduce((acc: ChartConfig, category: string, i: number) => {
       acc[category] = {
         label: category,
         color: `hsl(var(--${colors[i % colors.length]}))`,
@@ -404,7 +411,7 @@ export function BarChart(props: any) {
         <RechartsPrimitive.Tooltip
           content={
             <ChartTooltipContent
-              valueFormatter={valueFormatter}
+              formatter={valueFormatter}
               labelFormatter={(value) => value}
             />
           }
@@ -445,7 +452,7 @@ export function AreaChart(props: any) {
   } = props;
 
   const config = React.useMemo(() => {
-    return categories.reduce<ChartConfig>((acc, category, i) => {
+    return categories.reduce((acc: ChartConfig, category: string, i: number) => {
       acc[category] = {
         label: category,
         color: `hsl(var(--${colors[i % colors.length]}))`,
@@ -478,7 +485,7 @@ export function AreaChart(props: any) {
         <RechartsPrimitive.Tooltip
           content={
             <ChartTooltipContent
-              valueFormatter={valueFormatter}
+              formatter={valueFormatter}
               labelFormatter={(value) => value}
             />
           }
@@ -519,7 +526,7 @@ export function PieChart(props: any) {
   } = props;
 
   const config = React.useMemo(() => {
-    return data.reduce<ChartConfig>((acc, dataItem, i) => {
+    return data.reduce((acc: ChartConfig, dataItem: any, i: number) => {
       const name = dataItem[index];
       acc[name] = {
         label: name,
@@ -554,7 +561,7 @@ export function PieChart(props: any) {
           <RechartsPrimitive.Tooltip
             content={
               <ChartTooltipContent
-                valueFormatter={valueFormatter}
+                formatter={valueFormatter}
                 labelFormatter={(value) => value}
                 nameKey={index}
               />

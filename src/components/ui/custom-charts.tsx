@@ -20,7 +20,7 @@ const CustomChartTooltipContent = ({
   label?: string;
   nameKey?: string;
   payload?: any[];
-} & React.ComponentPropsWithoutRef<typeof RechartsPrimitive.TooltipProps>) => {
+} & React.ComponentPropsWithoutRef<"div">) => {
   if (!payload || payload.length === 0) {
     return null;
   }
@@ -53,7 +53,7 @@ const CustomChartLegendContent = ({
 }: {
   payload?: any[];
   nameKey?: string;
-} & React.ComponentPropsWithoutRef<typeof RechartsPrimitive.LegendProps>) => {
+} & React.ComponentPropsWithoutRef<"div">) => {
   if (!payload || payload.length === 0) {
     return null;
   }

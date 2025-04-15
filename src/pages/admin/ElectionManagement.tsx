@@ -84,7 +84,9 @@ const ElectionManagement = () => {
     const election = elections.find(e => e.id === electionId);
     if (!election) return false;
     
-    return election.votes?.some((vote: any) => vote.voterId === voterId) || false;
+    // Safely check if 'votes' property exists on the election object
+    const electionVotes = election.votesData || [];
+    return electionVotes.some((vote: any) => vote.voterId === voterId) || false;
   };
 
   const ElectionCard = ({ election }: { election: any }) => (
