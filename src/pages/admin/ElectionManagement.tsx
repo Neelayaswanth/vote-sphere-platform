@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileText, PlusCircle, Edit, Trash2, RefreshCw, Users } from 'lucide-react';
@@ -75,18 +74,15 @@ const ElectionManagement = () => {
   };
 
   const handleEditElection = (election: any) => {
-    // Navigate to edit page with the election ID
     navigate(`/admin/elections/edit/${election.id}`);
   };
 
-  // Check if a voter has voted in a specific election
   const hasVotedInElection = (voterId: string, electionId: string) => {
     const election = elections.find(e => e.id === electionId);
     if (!election) return false;
     
-    // Safely check if 'votes' property exists on the election object
-    const electionVotes = election.votesData || [];
-    return electionVotes.some((vote: any) => vote.voterId === voterId) || false;
+    const votes = election.votes || [];
+    return votes.some((vote: any) => vote.voterId === voterId || vote.voter_id === voterId) || false;
   };
 
   const ElectionCard = ({ election }: { election: any }) => (

@@ -91,7 +91,10 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .select('*')
           .order('created_at', { ascending: true });
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching support messages:", error);
+          throw error;
+        }
         
         console.log("Retrieved support messages:", data);
         
@@ -122,52 +125,75 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         // Create threads for each user
         const threads = await Promise.all(userIds.map(async (userId) => {
-          // Get user name
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', userId)
-            .single();
+          try {
+            // Get user name
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', userId)
+              .single();
+              
+            if (userError) {
+              console.error(`Error fetching user data for ${userId}:`, userError);
+              throw userError;
+            }
             
-          const userName = userData?.name || 'Unknown User';
-          
-          // Get messages for this user (incoming and outgoing)
-          const userMessages = data.filter((msg: SupportMessage) => 
-            (msg.sender_id === userId && !msg.is_from_admin) || 
-            (msg.receiver_id === userId && msg.is_from_admin)
-          );
-          
-          // Sort messages by created_at
-          userMessages.sort((a, b) => 
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-          
-          // Get last message
-          const lastMessageObj = userMessages[userMessages.length - 1];
-          const lastMessage = lastMessageObj?.message || '';
-          const lastMessageTime = lastMessageObj?.created_at || '';
-          
-          // Count unread messages (from non-admin users that haven't been read)
-          const unreadCount = userMessages.filter((msg: SupportMessage) => 
-            !msg.is_from_admin && !msg.read
-          ).length;
-          
-          return {
-            userId,
-            userName,
-            messages: userMessages,
-            lastMessage,
-            lastMessageTime,
-            unreadCount
-          };
+            const userName = userData?.name || 'Unknown User';
+            
+            // Get messages for this user (incoming and outgoing)
+            const userMessages = data.filter((msg: SupportMessage) => 
+              (msg.sender_id === userId && !msg.is_from_admin) || 
+              (msg.receiver_id === userId && msg.is_from_admin)
+            );
+            
+            // Debug: Check if we're finding messages for this user
+            console.log(`Found ${userMessages.length} messages for user ${userName} (${userId})`);
+            
+            // Sort messages by created_at
+            userMessages.sort((a: SupportMessage, b: SupportMessage) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+            
+            // Get last message
+            const lastMessageObj = userMessages[userMessages.length - 1];
+            const lastMessage = lastMessageObj?.message || '';
+            const lastMessageTime = lastMessageObj?.created_at || '';
+            
+            // Count unread messages (from non-admin users that haven't been read)
+            const unreadCount = userMessages.filter((msg: SupportMessage) => 
+              !msg.is_from_admin && !msg.read
+            ).length;
+            
+            return {
+              userId,
+              userName,
+              messages: userMessages,
+              lastMessage,
+              lastMessageTime,
+              unreadCount
+            };
+          } catch (error) {
+            console.error(`Error processing thread for user ${userId}:`, error);
+            // Return a placeholder thread object to avoid breaking the Promise.all
+            return {
+              userId,
+              userName: 'Unknown User',
+              messages: [],
+              lastMessage: '',
+              lastMessageTime: new Date().toISOString(),
+              unreadCount: 0
+            };
+          }
         }));
         
         console.log("Created threads:", threads);
         
-        setAdminThreads(threads);
+        // Filter out any threads that might have errors (no messages)
+        const validThreads = threads.filter(thread => thread.messages.length > 0);
+        setAdminThreads(validThreads);
         
         // Calculate total unread messages
-        const totalUnread = threads.reduce((sum, thread) => sum + thread.unreadCount, 0);
+        const totalUnread = validThreads.reduce((sum, thread) => sum + thread.unreadCount, 0);
         setUnreadMessagesCount(totalUnread);
       }
     } catch (error: any) {

@@ -20,6 +20,11 @@ export default function Support() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [userMessages]);
+
+  // Debug logs
+  useEffect(() => {
+    console.log("Voter Support - userMessages:", userMessages);
+  }, [userMessages]);
   
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSupport } from '@/contexts/SupportContext';
@@ -15,6 +15,18 @@ export default function Support() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // Debug: Log the current state to help diagnose issues
+    console.log("Admin Support Page - Current adminThreads:", adminThreads);
+    console.log("Admin Support Page - Active Thread:", activeThread);
+    
+    // Scroll to bottom when new messages arrive
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [adminThreads, activeThread]);
   
   // Filter threads by search query
   const filteredThreads = adminThreads.filter(thread => 
@@ -233,6 +245,7 @@ export default function Support() {
                       </div>
                     ))
                   )}
+                  <div ref={messagesEndRef} />
                 </ScrollArea>
                 
                 <div className="p-4 border-t flex gap-2 items-center">
