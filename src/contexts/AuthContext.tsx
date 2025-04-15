@@ -27,6 +27,8 @@ interface AuthContextType {
   updateUser: (userData: Partial<AppUser>) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   uploadProfileImage: (file: File) => Promise<string | null>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -241,6 +243,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      toast({
+        title: "Google login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const signInWithApple = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error("Apple login error:", error);
+      toast({
+        title: "Apple login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -408,7 +456,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     updateUser,
     changePassword,
-    uploadProfileImage
+    uploadProfileImage,
+    signInWithGoogle,
+    signInWithApple
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

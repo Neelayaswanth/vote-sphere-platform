@@ -9,16 +9,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
-import { Shield, UserCheck, Vote } from 'lucide-react';
+import { Apple, Shield, UserCheck, Vote, Github, Mail } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [tab, setTab] = useState('login');
+  const [activeTab, setActiveTab] = useState('login');
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, signup, signInWithGoogle, signInWithApple } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,16 +27,20 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      if (tab === 'login') {
-        await login({ email, password });
+      if (activeTab === 'login') {
+        await login(email, password);
+        toast({
+          title: "Login successful",
+          description: "Welcome back to VoteSphere!",
+        });
         navigate('/');
       } else {
-        await register({ email, password, name });
+        await signup(name, email, password, 'voter');
         toast({
           title: "Success",
           description: "Your account has been created successfully! Please check your email to verify your account.",
         });
-        setTab('login');
+        setActiveTab('login');
       }
     } catch (error: any) {
       toast({
@@ -45,6 +50,26 @@ export default function Auth() {
       });
     }
 
+    setIsLoading(false);
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'apple') => {
+    setIsLoading(true);
+    
+    try {
+      if (provider === 'google') {
+        await signInWithGoogle();
+      } else if (provider === 'apple') {
+        await signInWithApple();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || "An error occurred during social login",
+        variant: "destructive",
+      });
+    }
+    
     setIsLoading(false);
   };
 
@@ -81,7 +106,7 @@ export default function Auth() {
         >
           <Card className="border-t-4 border-t-primary">
             <CardHeader>
-              <Tabs value={tab} onValueChange={setTab} className="w-full">
+              <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="login">Login</TabsTrigger>
                   <TabsTrigger value="register">Register</TabsTrigger>
@@ -90,79 +115,115 @@ export default function Auth() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <TabsContent value="login" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      <a href="#" className="text-sm text-primary hover:underline">
-                        Forgot password?
-                      </a>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsContent value="login" className="mt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
                     </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Loading..." : "Sign In"}
-                  </Button>
-                </TabsContent>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <a href="#" className="text-sm text-primary hover:underline">
+                          Forgot password?
+                        </a>
+                      </div>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? "Loading..." : "Sign In"}
+                    </Button>
+                  </TabsContent>
 
-                <TabsContent value="register" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter your full name"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Password</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      placeholder="Create a password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating Account..." : "Create Account"}
-                  </Button>
-                </TabsContent>
+                  <TabsContent value="register" className="mt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        placeholder="Enter your full name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-email">Email</Label>
+                      <Input
+                        id="register-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-password">Password</Label>
+                      <Input
+                        id="register-password"
+                        type="password"
+                        placeholder="Create a password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? "Creating Account..." : "Create Account"}
+                    </Button>
+                  </TabsContent>
+                </Tabs>
               </form>
+              
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-background px-2 text-xs text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleSocialLogin('google')}
+                  className="flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-google"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                  Google
+                </Button>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleSocialLogin('apple')}
+                  className="flex items-center justify-center gap-2"
+                >
+                  <Apple className="h-4 w-4" />
+                  Apple
+                </Button>
+              </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 border-t pt-4">
               <div className="flex items-center justify-center w-full space-x-4 text-sm text-muted-foreground">
