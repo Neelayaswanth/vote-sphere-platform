@@ -81,8 +81,8 @@ const ElectionManagement = () => {
     const election = elections.find(e => e.id === electionId);
     if (!election) return false;
     
-    const votes = election.votes || [];
-    return votes.some((vote: any) => vote.voterId === voterId || vote.voter_id === voterId) || false;
+    const votesArray = election.votes || [];
+    return votesArray.some((vote: any) => vote.voterId === voterId || vote.voter_id === voterId) || false;
   };
 
   const ElectionCard = ({ election }: { election: any }) => (

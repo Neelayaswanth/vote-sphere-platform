@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -23,77 +24,53 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Search, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVoter } from '@/contexts/VoterContext';
 
 const itemsPerPage = 10;
 
 export default function VoterManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { voters, updateVoterVerification, updateVoterStatus, loading: votersLoading } = useVoter();
   
-  const [voters, setVoters] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [filteredVoters, setFilteredVoters] = useState<any[]>([]);
   
   useEffect(() => {
-    const fetchVoters = async () => {
-      if (!user || user.role !== 'admin') return;
+    if (!votersLoading) {
+      setLocalLoading(false);
       
-      setLoading(true);
+      // Filter voters based on search query
+      const filtered = searchQuery 
+        ? voters.filter(voter => 
+            voter.name.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : [...voters];
       
-      try {
-        let query = supabase
-          .from('profiles')
-          .select('*', { count: 'exact' })
-          .eq('role', 'voter')
-          .order('created_at', { ascending: false });
-          
-        if (searchQuery) {
-          query = query.ilike('name', `%${searchQuery}%`);
-        }
-        
-        const { data, error, count } = await query
-          .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
-          
-        if (error) throw error;
-        
-        const voterData = data.map(profile => ({
-          id: profile.id,
-          name: profile.name,
-          email: '',
-          verified: true,
-          status: profile.status || 'active',
-          profileImage: profile.profile_image || '/placeholder.svg'
-        }));
-        
-        setVoters(voterData);
-        setTotalPages(Math.ceil((count || 0) / itemsPerPage));
-      } catch (error) {
-        console.error('Error fetching voters:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load voter accounts."
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchVoters();
-  }, [user, searchQuery, currentPage]);
+      // Update total pages
+      setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+      
+      // Paginate the results
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      setFilteredVoters(filtered.slice(start, end));
+    }
+  }, [voters, searchQuery, currentPage, votersLoading]);
   
   const handleVerifyVoter = async (voterId: string) => {
     try {
-      // Simulate verification process
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("Verifying voter:", voterId);
+      await updateVoterVerification(voterId, true);
       
       toast({
         title: "Voter Verified",
         description: "The voter account has been successfully verified.",
       });
     } catch (error) {
+      console.error("Error verifying voter:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -104,24 +81,9 @@ export default function VoterManagement() {
   
   const handleBlockVoter = async (voterId: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: 'blocked' })
-        .eq('id', voterId);
-        
-      if (error) throw error;
-      
-      setVoters(prev => 
-        prev.map(voter => 
-          voter.id === voterId ? { ...voter, status: 'blocked' } : voter
-        )
-      );
-      
-      toast({
-        title: "Voter Blocked",
-        description: "The voter account has been successfully blocked.",
-      });
+      await updateVoterStatus(voterId, 'blocked');
     } catch (error) {
+      console.error("Error blocking voter:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -132,24 +94,9 @@ export default function VoterManagement() {
   
   const handleUnblockVoter = async (voterId: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: 'active' })
-        .eq('id', voterId);
-        
-      if (error) throw error;
-      
-      setVoters(prev => 
-        prev.map(voter => 
-          voter.id === voterId ? { ...voter, status: 'active' } : voter
-        )
-      );
-      
-      toast({
-        title: "Voter Unblocked",
-        description: "The voter account has been successfully unblocked.",
-      });
+      await updateVoterStatus(voterId, 'active');
     } catch (error) {
+      console.error("Error unblocking voter:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -173,7 +120,7 @@ export default function VoterManagement() {
     return (
       <TableRow>
         <TableCell className="font-medium">{voter.name}</TableCell>
-        <TableCell>{voter.email}</TableCell>
+        <TableCell>{voter.email || 'No email provided'}</TableCell>
         <TableCell>
           {voter.verified ? (
             <Badge variant="secondary">Verified</Badge>
@@ -270,7 +217,7 @@ export default function VoterManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
+                  {localLoading ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
@@ -278,14 +225,14 @@ export default function VoterManagement() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    voters.length === 0 ? (
+                    filteredVoters.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8">
                           <p className="text-muted-foreground">No voter accounts found.</p>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      voters.map(voter => (
+                      filteredVoters.map(voter => (
                         <VoterItem 
                           key={voter.id}
                           voter={voter}
