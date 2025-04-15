@@ -1,20 +1,41 @@
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, PlusCircle, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FileText, PlusCircle, Edit, Trash2, RefreshCw, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useElection } from '@/contexts/ElectionContext';
 import { Badge } from '@/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { 
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
+  AlertDialogTitle, AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useVoter } from '@/contexts/VoterContext';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Check, X } from 'lucide-react';
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from '@/components/ui/table';
 
 const ElectionManagement = () => {
   const { elections, deleteElection, loading, endElection } = useElection();
+  const { voters } = useVoter();
   const [refreshing, setRefreshing] = useState(false);
   const [electionToEnd, setElectionToEnd] = useState<string | null>(null);
+  const [selectedElection, setSelectedElection] = useState<any>(null);
+  const navigate = useNavigate();
 
   const upcomingElections = elections.filter(election => election.status === 'upcoming');
   const activeElections = elections.filter(election => election.status === 'active');
@@ -53,6 +74,19 @@ const ElectionManagement = () => {
     }
   };
 
+  const handleEditElection = (election: any) => {
+    // Navigate to edit page with the election ID
+    navigate(`/admin/elections/edit/${election.id}`);
+  };
+
+  // Check if a voter has voted in a specific election
+  const hasVotedInElection = (voterId: string, electionId: string) => {
+    const election = elections.find(e => e.id === electionId);
+    if (!election) return false;
+    
+    return election.votes?.some((vote: any) => vote.voterId === voterId) || false;
+  };
+
   const ElectionCard = ({ election }: { election: any }) => (
     <Card key={election.id} className="mb-4">
       <CardHeader className="pb-2">
@@ -78,11 +112,77 @@ const ElectionManagement = () => {
         </div>
       </CardContent>
       <CardFooter className="pt-2 flex justify-end space-x-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/admin/elections/edit/${election.id}`}>
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
-          </Link>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Users className="h-4 w-4 mr-1" />
+              Voter Status
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Voter Participation: {election.title}</DialogTitle>
+              <DialogDescription>
+                Track which voters have cast their ballots in this election
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-[400px] mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Voter Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Verification</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {voters.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center h-24">
+                        No voters found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    voters.map(voter => (
+                      <TableRow key={voter.id}>
+                        <TableCell className="font-medium">{voter.name}</TableCell>
+                        <TableCell>{voter.email}</TableCell>
+                        <TableCell>
+                          {hasVotedInElection(voter.id, election.id) ? (
+                            <Badge className="bg-green-500">
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Voted
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-red-200 text-red-500">
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Not Voted
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {voter.verified ? (
+                            <Badge variant="outline" className="border-green-200 text-green-500">
+                              Verified
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-yellow-200 text-yellow-500">
+                              Pending
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+        <Button variant="outline" size="sm" onClick={() => handleEditElection(election)}>
+          <Edit className="h-4 w-4 mr-1" />
+          Edit
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>

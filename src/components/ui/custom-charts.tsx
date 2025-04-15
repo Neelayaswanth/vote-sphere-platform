@@ -8,6 +8,71 @@ import {
   ChartConfig
 } from "@/components/ui/chart";
 
+// A properly typed ChartTooltipContent component for our needs
+const CustomChartTooltipContent = ({
+  formatter,
+  label,
+  nameKey,
+  payload,
+  ...props
+}: {
+  formatter?: (value: any) => any;
+  label?: string;
+  nameKey?: string;
+  payload?: any[];
+} & React.ComponentPropsWithoutRef<typeof RechartsPrimitive.TooltipProps>) => {
+  if (!payload || payload.length === 0) {
+    return null;
+  }
+  
+  return (
+    <div className="rounded-md border bg-background p-2 shadow-md">
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <p className="font-medium">{label}</p>
+        <div className="border-l pl-2">
+          {payload.map((entry, index) => (
+            <p
+              key={`item-${index}`}
+              className="flex items-center gap-2 font-medium"
+              style={{ color: entry.color }}
+            >
+              {formatter ? formatter(entry.value) : entry.value}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// A properly typed ChartLegendContent component for our needs
+const CustomChartLegendContent = ({
+  payload,
+  nameKey,
+  ...props
+}: {
+  payload?: any[];
+  nameKey?: string;
+} & React.ComponentPropsWithoutRef<typeof RechartsPrimitive.LegendProps>) => {
+  if (!payload || payload.length === 0) {
+    return null;
+  }
+  
+  return (
+    <ul className="flex flex-wrap items-center gap-4">
+      {payload.map((entry, index) => (
+        <li key={`item-${index}`} className="flex items-center gap-1">
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span>{entry.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 export function BarChart(props: any) {
   const {
     data = [],
@@ -55,11 +120,11 @@ export function BarChart(props: any) {
           />
         )}
         <RechartsPrimitive.Tooltip
-          content={<ChartTooltipContent formatter={valueFormatter} label={index} />}
+          content={<CustomChartTooltipContent formatter={valueFormatter} label={index} />}
         />
         {showLegend && (
           <RechartsPrimitive.Legend
-            content={<ChartLegendContent />}
+            content={<CustomChartLegendContent />}
             verticalAlign="top"
           />
         )}
@@ -124,11 +189,11 @@ export function AreaChart(props: any) {
           />
         )}
         <RechartsPrimitive.Tooltip
-          content={<ChartTooltipContent formatter={valueFormatter} label={index} />}
+          content={<CustomChartTooltipContent formatter={valueFormatter} label={index} />}
         />
         {showLegend && (
           <RechartsPrimitive.Legend
-            content={<ChartLegendContent />}
+            content={<CustomChartLegendContent />}
             verticalAlign="top"
           />
         )}
@@ -195,12 +260,12 @@ export function PieChart(props: any) {
         </RechartsPrimitive.Pie>
         {showTooltip && (
           <RechartsPrimitive.Tooltip
-            content={<ChartTooltipContent formatter={valueFormatter} label={index} nameKey={index} />}
+            content={<CustomChartTooltipContent formatter={valueFormatter} label={index} nameKey={index} />}
           />
         )}
         {showLegend && (
           <RechartsPrimitive.Legend
-            content={<ChartLegendContent nameKey={index} />}
+            content={<CustomChartLegendContent nameKey={index} />}
             verticalAlign="bottom"
           />
         )}

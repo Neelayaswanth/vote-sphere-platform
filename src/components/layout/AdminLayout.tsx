@@ -5,14 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Button } from '@/components/ui/button';
 import { 
-  BarChart3, Calendar, FileText, LogOut, Menu, Settings, 
+  BarChart3, Calendar, FileText, LogOut, Menu, MessageSquare, Settings, 
   Shield, Users, Vote, X 
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useSupport } from '@/contexts/SupportContext';
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
+  const { unreadMessagesCount } = useSupport();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -26,6 +29,12 @@ export default function AdminLayout() {
     { path: '/admin/voters', label: 'Voters', icon: <Users className="w-4 h-4" /> },
     { path: '/admin/elections', label: 'Elections', icon: <Vote className="w-4 h-4" /> },
     { path: '/admin/activity-logs', label: 'Activity Logs', icon: <FileText className="w-4 h-4" /> },
+    { 
+      path: '/admin/support', 
+      label: 'Support', 
+      icon: <MessageSquare className="w-4 h-4" />,
+      badge: unreadMessagesCount > 0 ? unreadMessagesCount : null
+    },
     { path: '/admin/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -74,6 +83,11 @@ export default function AdminLayout() {
                 >
                   {item.icon}
                   <span>{item.label}</span>
+                  {item.badge && (
+                    <Badge variant="destructive" className="ml-auto">
+                      {item.badge}
+                    </Badge>
+                  )}
                 </NavLink>
               ))}
             </nav>
@@ -145,6 +159,11 @@ export default function AdminLayout() {
                   >
                     {item.icon}
                     <span>{item.label}</span>
+                    {item.badge && (
+                      <Badge variant="destructive" className="ml-auto">
+                        {item.badge}
+                      </Badge>
+                    )}
                   </NavLink>
                 ))}
               </nav>
