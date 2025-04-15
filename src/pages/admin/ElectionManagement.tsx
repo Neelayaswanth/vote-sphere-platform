@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileText, PlusCircle, Edit, Trash2, RefreshCw, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,11 +36,43 @@ const ElectionManagement = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [electionToEnd, setElectionToEnd] = useState<string | null>(null);
   const [selectedElection, setSelectedElection] = useState<any>(null);
+  const [votesMapping, setVotesMapping] = useState<{[key: string]: Set<string>}>({});
   const navigate = useNavigate();
 
   const upcomingElections = elections.filter(election => election.status === 'upcoming');
   const activeElections = elections.filter(election => election.status === 'active');
   const completedElections = elections.filter(election => election.status === 'completed');
+
+  // Fetch votes data for each election
+  useEffect(() => {
+    const fetchVotesData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('votes')
+          .select('election_id, voter_id');
+        
+        if (error) {
+          console.error('Error fetching votes data:', error);
+          return;
+        }
+        
+        // Create a mapping of election_id to a set of voter_ids
+        const mapping: {[key: string]: Set<string>} = {};
+        data?.forEach(vote => {
+          if (!mapping[vote.election_id]) {
+            mapping[vote.election_id] = new Set();
+          }
+          mapping[vote.election_id].add(vote.voter_id);
+        });
+        
+        setVotesMapping(mapping);
+      } catch (error) {
+        console.error('Error in votes fetch operation:', error);
+      }
+    };
+    
+    fetchVotesData();
+  }, []);
 
   const refreshData = () => {
     setRefreshing(true);
@@ -78,11 +112,8 @@ const ElectionManagement = () => {
   };
 
   const hasVotedInElection = (voterId: string, electionId: string) => {
-    const election = elections.find(e => e.id === electionId);
-    if (!election) return false;
-    
-    const votesArray = election.votes || [];
-    return votesArray.some((vote: any) => vote.voterId === voterId || vote.voter_id === voterId) || false;
+    // Check if this voter has voted in this election using our mapping
+    return votesMapping[electionId]?.has(voterId) || false;
   };
 
   const ElectionCard = ({ election }: { election: any }) => (
