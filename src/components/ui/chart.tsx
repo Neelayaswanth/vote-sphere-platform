@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
@@ -351,6 +352,224 @@ function getPayloadConfigFromPayload(
   return configLabelKey in config
     ? config[configLabelKey]
     : config[key as keyof typeof config]
+}
+
+// Add the missing chart component exports that AdminDashboard is trying to import
+export function BarChart(props: any) {
+  const {
+    data = [],
+    index,
+    categories,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showLegend = true,
+    showXAxis = true,
+    showYAxis = true,
+    showGridLines = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return categories.reduce<ChartConfig>((acc, category, i) => {
+      acc[category] = {
+        label: category,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [categories, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.BarChart data={data}>
+        {showGridLines && (
+          <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" vertical={false} />
+        )}
+        {showXAxis && (
+          <RechartsPrimitive.XAxis
+            dataKey={index}
+            tickLine={false}
+            axisLine={false}
+            padding={{ left: 10, right: 10 }}
+          />
+        )}
+        {showYAxis && (
+          <RechartsPrimitive.YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={valueFormatter}
+          />
+        )}
+        <RechartsPrimitive.Tooltip
+          content={
+            <ChartTooltipContent
+              valueFormatter={valueFormatter}
+              labelFormatter={(value) => value}
+            />
+          }
+        />
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent />}
+            verticalAlign="top"
+          />
+        )}
+        {categories.map((category, i) => (
+          <RechartsPrimitive.Bar
+            key={category}
+            dataKey={category}
+            fill={`hsl(var(--${colors[i % colors.length]}))`}
+            radius={4}
+            {...(showAnimation && { isAnimationActive: true })}
+          />
+        ))}
+      </RechartsPrimitive.BarChart>
+    </ChartContainer>
+  );
+}
+
+export function AreaChart(props: any) {
+  const {
+    data = [],
+    index,
+    categories,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showLegend = true,
+    showXAxis = true,
+    showYAxis = true,
+    showGridLines = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return categories.reduce<ChartConfig>((acc, category, i) => {
+      acc[category] = {
+        label: category,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [categories, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.AreaChart data={data}>
+        {showGridLines && (
+          <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" vertical={false} />
+        )}
+        {showXAxis && (
+          <RechartsPrimitive.XAxis
+            dataKey={index}
+            tickLine={false}
+            axisLine={false}
+            padding={{ left: 10, right: 10 }}
+          />
+        )}
+        {showYAxis && (
+          <RechartsPrimitive.YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={valueFormatter}
+          />
+        )}
+        <RechartsPrimitive.Tooltip
+          content={
+            <ChartTooltipContent
+              valueFormatter={valueFormatter}
+              labelFormatter={(value) => value}
+            />
+          }
+        />
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent />}
+            verticalAlign="top"
+          />
+        )}
+        {categories.map((category, i) => (
+          <RechartsPrimitive.Area
+            key={category}
+            type="monotone"
+            dataKey={category}
+            fill={`hsl(var(--${colors[i % colors.length]}))`}
+            stroke={`hsl(var(--${colors[i % colors.length]}))`}
+            fillOpacity={0.1}
+            {...(showAnimation && { isAnimationActive: true })}
+          />
+        ))}
+      </RechartsPrimitive.AreaChart>
+    </ChartContainer>
+  );
+}
+
+export function PieChart(props: any) {
+  const {
+    data = [],
+    index,
+    category,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showTooltip = true,
+    showLegend = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return data.reduce<ChartConfig>((acc, dataItem, i) => {
+      const name = dataItem[index];
+      acc[name] = {
+        label: name,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [data, index, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.PieChart>
+        <RechartsPrimitive.Pie
+          data={data}
+          nameKey={index}
+          dataKey={category}
+          cx="50%"
+          cy="50%"
+          outerRadius={80}
+          labelLine={false}
+          label={(entry) => entry[index]}
+          {...(showAnimation && { isAnimationActive: true })}
+        >
+          {data.map((entry, i) => (
+            <RechartsPrimitive.Cell
+              key={`cell-${i}`}
+              fill={`hsl(var(--${colors[i % colors.length]}))`}
+            />
+          ))}
+        </RechartsPrimitive.Pie>
+        {showTooltip && (
+          <RechartsPrimitive.Tooltip
+            content={
+              <ChartTooltipContent
+                valueFormatter={valueFormatter}
+                labelFormatter={(value) => value}
+                nameKey={index}
+              />
+            }
+          />
+        )}
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent nameKey={index} />}
+            verticalAlign="bottom"
+          />
+        )}
+      </RechartsPrimitive.PieChart>
+    </ChartContainer>
+  );
 }
 
 export {

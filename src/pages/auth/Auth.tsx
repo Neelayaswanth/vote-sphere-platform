@@ -1,283 +1,581 @@
+import * as React from "react"
+import * as RechartsPrimitive from "recharts"
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import { LockIcon, MailIcon, UserIcon, KeyIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
+import { cn } from "@/lib/utils"
 
-export default function Auth() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
-  
-  const { login, signup, user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  // Redirect if already logged in
-  if (user) {
-    if (user.role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/voter');
-    }
-    return null;
+// Format: { THEME_NAME: CSS_SELECTOR }
+const THEMES = { light: "", dark: ".dark" } as const
+
+export type ChartConfig = {
+  [k in string]: {
+    label?: React.ReactNode
+    icon?: React.ComponentType
+  } & (
+    | { color?: string; theme?: never }
+    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+  )
+}
+
+type ChartContextProps = {
+  config: ChartConfig
+}
+
+const ChartContext = React.createContext<ChartContextProps | null>(null)
+
+function useChart() {
+  const context = React.useContext(ChartContext)
+
+  if (!context) {
+    throw new Error("useChart must be used within a <ChartContainer />")
   }
-  
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      await login(email, password);
-      toast({
-        title: "Success",
-        description: "You have successfully logged in",
-      });
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast({
-        title: "Login Failed",
-        description: error.message || "An error occurred during login",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password || !name) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      await signup(email, password, name);
-      toast({
-        title: "Account Created",
-        description: "Your account has been created successfully",
-      });
-      setActiveTab("login");
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      toast({
-        title: "Registration Failed",
-        description: error.message || "An error occurred during registration",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-secondary/10 animate-fade-in">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center animate-scale-in">
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
-            Election System
-          </h1>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            Secure, transparent, and efficient digital voting platform
-          </p>
-        </div>
 
-        <Card className="shadow-lg border-primary/10 animate-slide-in-right">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">
-              {activeTab === 'login' ? 'Welcome Back' : 'Create an Account'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {activeTab === 'login' 
-                ? 'Enter your credentials to access your account' 
-                : 'Sign up to start using our platform'}
-            </CardDescription>
-          </CardHeader>
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <form onSubmit={handleLogin}>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center gap-2">
-                      <MailIcon className="w-4 h-4" />
-                      Email
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="pl-10"
-                        required
-                      />
-                      <MailIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="flex items-center gap-2">
-                      <LockIcon className="w-4 h-4" />
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="pl-10"
-                        required
-                      />
-                      <KeyIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </CardContent>
-                
-                <CardFooter>
-                  <Button 
-                    type="submit" 
-                    className="w-full transition-all hover:scale-105 active:scale-95"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                        Logging in...
-                      </div>
+  return context
+}
+
+const ChartContainer = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div"> & {
+    config: ChartConfig
+    children: React.ComponentProps<
+      typeof RechartsPrimitive.ResponsiveContainer
+    >["children"]
+  }
+>(({ id, className, children, config, ...props }, ref) => {
+  const uniqueId = React.useId()
+  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+
+  return (
+    <ChartContext.Provider value={{ config }}>
+      <div
+        data-chart={chartId}
+        ref={ref}
+        className={cn(
+          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          className
+        )}
+        {...props}
+      >
+        <ChartStyle id={chartId} config={config} />
+        <RechartsPrimitive.ResponsiveContainer>
+          {children}
+        </RechartsPrimitive.ResponsiveContainer>
+      </div>
+    </ChartContext.Provider>
+  )
+})
+ChartContainer.displayName = "Chart"
+
+const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const colorConfig = Object.entries(config).filter(
+    ([_, config]) => config.theme || config.color
+  )
+
+  if (!colorConfig.length) {
+    return null
+  }
+
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        __html: Object.entries(THEMES)
+          .map(
+            ([theme, prefix]) => `
+${prefix} [data-chart=${id}] {
+${colorConfig
+  .map(([key, itemConfig]) => {
+    const color =
+      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+      itemConfig.color
+    return color ? `  --color-${key}: ${color};` : null
+  })
+  .join("\n")}
+}
+`
+          )
+          .join("\n"),
+      }}
+    />
+  )
+}
+
+const ChartTooltip = RechartsPrimitive.Tooltip
+
+const ChartTooltipContent = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+    React.ComponentProps<"div"> & {
+      hideLabel?: boolean
+      hideIndicator?: boolean
+      indicator?: "line" | "dot" | "dashed"
+      nameKey?: string
+      labelKey?: string
+    }
+>(
+  (
+    {
+      active,
+      payload,
+      className,
+      indicator = "dot",
+      hideLabel = false,
+      hideIndicator = false,
+      label,
+      labelFormatter,
+      labelClassName,
+      formatter,
+      color,
+      nameKey,
+      labelKey,
+    },
+    ref
+  ) => {
+    const { config } = useChart()
+
+    const tooltipLabel = React.useMemo(() => {
+      if (hideLabel || !payload?.length) {
+        return null
+      }
+
+      const [item] = payload
+      const key = `${labelKey || item.dataKey || item.name || "value"}`
+      const itemConfig = getPayloadConfigFromPayload(config, item, key)
+      const value =
+        !labelKey && typeof label === "string"
+          ? config[label as keyof typeof config]?.label || label
+          : itemConfig?.label
+
+      if (labelFormatter) {
+        return (
+          <div className={cn("font-medium", labelClassName)}>
+            {labelFormatter(value, payload)}
+          </div>
+        )
+      }
+
+      if (!value) {
+        return null
+      }
+
+      return <div className={cn("font-medium", labelClassName)}>{value}</div>
+    }, [
+      label,
+      labelFormatter,
+      payload,
+      hideLabel,
+      labelClassName,
+      config,
+      labelKey,
+    ])
+
+    if (!active || !payload?.length) {
+      return null
+    }
+
+    const nestLabel = payload.length === 1 && indicator !== "dot"
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
+          className
+        )}
+      >
+        {!nestLabel ? tooltipLabel : null}
+        <div className="grid gap-1.5">
+          {payload.map((item, index) => {
+            const key = `${nameKey || item.name || item.dataKey || "value"}`
+            const itemConfig = getPayloadConfigFromPayload(config, item, key)
+            const indicatorColor = color || item.payload.fill || item.color
+
+            return (
+              <div
+                key={item.dataKey}
+                className={cn(
+                  "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
+                  indicator === "dot" && "items-center"
+                )}
+              >
+                {formatter && item?.value !== undefined && item.name ? (
+                  formatter(item.value, item.name, item, index, item.payload)
+                ) : (
+                  <>
+                    {itemConfig?.icon ? (
+                      <itemConfig.icon />
                     ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        Log in
-                        <ArrowRightIcon className="w-4 h-4" />
-                      </div>
+                      !hideIndicator && (
+                        <div
+                          className={cn(
+                            "shrink-0 rounded-[2px] border-[--color-border] bg-[--color-bg]",
+                            {
+                              "h-2.5 w-2.5": indicator === "dot",
+                              "w-1": indicator === "line",
+                              "w-0 border-[1.5px] border-dashed bg-transparent":
+                                indicator === "dashed",
+                              "my-0.5": nestLabel && indicator === "dashed",
+                            }
+                          )}
+                          style={
+                            {
+                              "--color-bg": indicatorColor,
+                              "--color-border": indicatorColor,
+                            } as React.CSSProperties
+                          }
+                        />
+                      )
                     )}
-                  </Button>
-                </CardFooter>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup}>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4" />
-                      Full Name
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="John Doe"
-                        className="pl-10"
-                        required
-                      />
-                      <UserIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="flex items-center gap-2">
-                      <MailIcon className="w-4 h-4" />
-                      Email
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="pl-10"
-                        required
-                      />
-                      <MailIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="flex items-center gap-2">
-                      <LockIcon className="w-4 h-4" />
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="pl-10"
-                        required
-                      />
-                      <KeyIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </CardContent>
-                
-                <CardFooter>
-                  <Button 
-                    type="submit" 
-                    className="w-full transition-all hover:scale-105 active:scale-95"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                        Creating account...
+                    <div
+                      className={cn(
+                        "flex flex-1 justify-between leading-none",
+                        nestLabel ? "items-end" : "items-center"
+                      )}
+                    >
+                      <div className="grid gap-1.5">
+                        {nestLabel ? tooltipLabel : null}
+                        <span className="text-muted-foreground">
+                          {itemConfig?.label || item.name}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        Create Account
-                        <CheckCircleIcon className="w-4 h-4" />
-                      </div>
-                    )}
-                  </Button>
-                </CardFooter>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </Card>
-        
-        <div className="text-center text-sm text-muted-foreground animate-fade-in">
-          <p>Protected by encrypted authentication and storage.</p>
+                      {item.value && (
+                        <span className="font-mono font-medium tabular-nums text-foreground">
+                          {item.value.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
-    </div>
+    )
+  }
+)
+ChartTooltipContent.displayName = "ChartTooltip"
+
+const ChartLegend = RechartsPrimitive.Legend
+
+const ChartLegendContent = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div"> &
+    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+      hideIcon?: boolean
+      nameKey?: string
+    }
+>(
+  (
+    { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
+    ref
+  ) => {
+    const { config } = useChart()
+
+    if (!payload?.length) {
+      return null
+    }
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "flex items-center justify-center gap-4",
+          verticalAlign === "top" ? "pb-3" : "pt-3",
+          className
+        )}
+      >
+        {payload.map((item) => {
+          const key = `${nameKey || item.dataKey || "value"}`
+          const itemConfig = getPayloadConfigFromPayload(config, item, key)
+
+          return (
+            <div
+              key={item.value}
+              className={cn(
+                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
+              )}
+            >
+              {itemConfig?.icon && !hideIcon ? (
+                <itemConfig.icon />
+              ) : (
+                <div
+                  className="h-2 w-2 shrink-0 rounded-[2px]"
+                  style={{
+                    backgroundColor: item.color,
+                  }}
+                />
+              )}
+              {itemConfig?.label}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+)
+ChartLegendContent.displayName = "ChartLegend"
+
+// Helper to extract item config from a payload.
+function getPayloadConfigFromPayload(
+  config: ChartConfig,
+  payload: unknown,
+  key: string
+) {
+  if (typeof payload !== "object" || payload === null) {
+    return undefined
+  }
+
+  const payloadPayload =
+    "payload" in payload &&
+    typeof payload.payload === "object" &&
+    payload.payload !== null
+      ? payload.payload
+      : undefined
+
+  let configLabelKey: string = key
+
+  if (
+    key in payload &&
+    typeof payload[key as keyof typeof payload] === "string"
+  ) {
+    configLabelKey = payload[key as keyof typeof payload] as string
+  } else if (
+    payloadPayload &&
+    key in payloadPayload &&
+    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
+  ) {
+    configLabelKey = payloadPayload[
+      key as keyof typeof payloadPayload
+    ] as string
+  }
+
+  return configLabelKey in config
+    ? config[configLabelKey]
+    : config[key as keyof typeof config]
+}
+
+// Add the missing chart component exports that AdminDashboard is trying to import
+export function BarChart(props: any) {
+  const {
+    data = [],
+    index,
+    categories,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showLegend = true,
+    showXAxis = true,
+    showYAxis = true,
+    showGridLines = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return categories.reduce<ChartConfig>((acc, category, i) => {
+      acc[category] = {
+        label: category,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [categories, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.BarChart data={data}>
+        {showGridLines && (
+          <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" vertical={false} />
+        )}
+        {showXAxis && (
+          <RechartsPrimitive.XAxis
+            dataKey={index}
+            tickLine={false}
+            axisLine={false}
+            padding={{ left: 10, right: 10 }}
+          />
+        )}
+        {showYAxis && (
+          <RechartsPrimitive.YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={valueFormatter}
+          />
+        )}
+        <RechartsPrimitive.Tooltip
+          content={
+            <ChartTooltipContent
+              valueFormatter={valueFormatter}
+              labelFormatter={(value) => value}
+            />
+          }
+        />
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent />}
+            verticalAlign="top"
+          />
+        )}
+        {categories.map((category, i) => (
+          <RechartsPrimitive.Bar
+            key={category}
+            dataKey={category}
+            fill={`hsl(var(--${colors[i % colors.length]}))`}
+            radius={4}
+            {...(showAnimation && { isAnimationActive: true })}
+          />
+        ))}
+      </RechartsPrimitive.BarChart>
+    </ChartContainer>
   );
+}
+
+export function AreaChart(props: any) {
+  const {
+    data = [],
+    index,
+    categories,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showLegend = true,
+    showXAxis = true,
+    showYAxis = true,
+    showGridLines = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return categories.reduce<ChartConfig>((acc, category, i) => {
+      acc[category] = {
+        label: category,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [categories, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.AreaChart data={data}>
+        {showGridLines && (
+          <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" vertical={false} />
+        )}
+        {showXAxis && (
+          <RechartsPrimitive.XAxis
+            dataKey={index}
+            tickLine={false}
+            axisLine={false}
+            padding={{ left: 10, right: 10 }}
+          />
+        )}
+        {showYAxis && (
+          <RechartsPrimitive.YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={valueFormatter}
+          />
+        )}
+        <RechartsPrimitive.Tooltip
+          content={
+            <ChartTooltipContent
+              valueFormatter={valueFormatter}
+              labelFormatter={(value) => value}
+            />
+          }
+        />
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent />}
+            verticalAlign="top"
+          />
+        )}
+        {categories.map((category, i) => (
+          <RechartsPrimitive.Area
+            key={category}
+            type="monotone"
+            dataKey={category}
+            fill={`hsl(var(--${colors[i % colors.length]}))`}
+            stroke={`hsl(var(--${colors[i % colors.length]}))`}
+            fillOpacity={0.1}
+            {...(showAnimation && { isAnimationActive: true })}
+          />
+        ))}
+      </RechartsPrimitive.AreaChart>
+    </ChartContainer>
+  );
+}
+
+export function PieChart(props: any) {
+  const {
+    data = [],
+    index,
+    category,
+    colors = ["primary"],
+    valueFormatter,
+    showAnimation = true,
+    showTooltip = true,
+    showLegend = true,
+    ...rest
+  } = props;
+
+  const config = React.useMemo(() => {
+    return data.reduce<ChartConfig>((acc, dataItem, i) => {
+      const name = dataItem[index];
+      acc[name] = {
+        label: name,
+        color: `hsl(var(--${colors[i % colors.length]}))`,
+      };
+      return acc;
+    }, {});
+  }, [data, index, colors]);
+
+  return (
+    <ChartContainer config={config} {...rest}>
+      <RechartsPrimitive.PieChart>
+        <RechartsPrimitive.Pie
+          data={data}
+          nameKey={index}
+          dataKey={category}
+          cx="50%"
+          cy="50%"
+          outerRadius={80}
+          labelLine={false}
+          label={(entry) => entry[index]}
+          {...(showAnimation && { isAnimationActive: true })}
+        >
+          {data.map((entry, i) => (
+            <RechartsPrimitive.Cell
+              key={`cell-${i}`}
+              fill={`hsl(var(--${colors[i % colors.length]}))`}
+            />
+          ))}
+        </RechartsPrimitive.Pie>
+        {showTooltip && (
+          <RechartsPrimitive.Tooltip
+            content={
+              <ChartTooltipContent
+                valueFormatter={valueFormatter}
+                labelFormatter={(value) => value}
+                nameKey={index}
+              />
+            }
+          />
+        )}
+        {showLegend && (
+          <RechartsPrimitive.Legend
+            content={<ChartLegendContent nameKey={index} />}
+            verticalAlign="bottom"
+          />
+        )}
+      </RechartsPrimitive.PieChart>
+    </ChartContainer>
+  );
+}
+
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
 }
