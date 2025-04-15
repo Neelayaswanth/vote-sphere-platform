@@ -108,6 +108,7 @@ const ElectionManagement = () => {
   };
 
   const handleEditElection = (election: any) => {
+    console.log("Editing election with ID:", election.id);
     navigate(`/admin/elections/edit/${election.id}`);
   };
 

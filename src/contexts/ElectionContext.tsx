@@ -273,7 +273,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user]);
 
   const getElection = (id: string) => {
-    return elections.find(election => election.id === id);
+    console.log("Getting election with ID:", id);
+    console.log("Available elections:", elections.map(e => e.id));
+    const election = elections.find(election => election.id === id);
+    console.log("Found election:", election ? "yes" : "no");
+    return election;
   };
 
   const createElection = async (electionData: Omit<Election, 'id' | 'totalVotes' | 'status' | 'candidates'>) => {
@@ -352,6 +356,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (electionData.description) dbData.description = electionData.description;
       if (electionData.startDate) dbData.start_date = electionData.startDate;
       if (electionData.endDate) dbData.end_date = electionData.endDate;
+
+      console.log("Database update data:", dbData);
 
       const { error } = await supabase
         .from('elections')

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from "react-hook-form";
@@ -21,7 +20,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
-// Validation schema
 const formSchema = z.object({
   title: z.string().min(3, {
     message: "Election title must be at least 3 characters.",
@@ -40,14 +38,12 @@ const formSchema = z.object({
   path: ["endDate"],
 });
 
-// Candidate form schema
 const candidateSchema = z.object({
   name: z.string().min(2, { message: "Candidate name must be at least 2 characters." }),
   description: z.string().optional(),
   imageUrl: z.string().optional(),
 });
 
-// Candidate type
 interface CandidateForm {
   id?: string;
   name: string;
@@ -66,18 +62,18 @@ const CreateElection = () => {
   const [editingCandidateIndex, setEditingCandidateIndex] = useState<number | null>(null);
   const isEditMode = !!electionId;
 
-  // Election form
+  console.log("CreateElection component - isEditMode:", isEditMode, "electionId:", electionId);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
       startDate: new Date(),
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 1 week duration
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
 
-  // Candidate form
   const candidateForm = useForm<CandidateForm>({
     resolver: zodResolver(candidateSchema),
     defaultValues: {
@@ -87,11 +83,13 @@ const CreateElection = () => {
     },
   });
 
-  // Load election data if in edit mode
   useEffect(() => {
     if (isEditMode) {
+      console.log("Edit mode detected, loading election data for ID:", electionId);
       const election = getElection(electionId);
+      
       if (election) {
+        console.log("Found election data:", election);
         form.reset({
           title: election.title,
           description: election.description,
@@ -99,7 +97,6 @@ const CreateElection = () => {
           endDate: new Date(election.endDate),
         });
         
-        // Load candidates
         const electionCandidates = election.candidates.map(candidate => ({
           id: candidate.id,
           name: candidate.name,
@@ -109,7 +106,7 @@ const CreateElection = () => {
         
         setCandidates(electionCandidates);
       } else {
-        // Election not found
+        console.error("Election not found for ID:", electionId);
         toast({
           title: "Error",
           description: "Election not found",
@@ -117,6 +114,8 @@ const CreateElection = () => {
         });
         navigate('/admin/elections');
       }
+    } else {
+      console.log("Create new election mode");
     }
   }, [electionId, getElection, form, navigate, toast, isEditMode]);
 
@@ -125,13 +124,12 @@ const CreateElection = () => {
       setIsSubmitting(true);
       
       if (isEditMode) {
-        // Update existing election
-        await updateElection(electionId, {
+        console.log("Updating existing election with ID:", electionId);
+        await updateElection(electionId!, {
           title: values.title,
           description: values.description,
           startDate: values.startDate.toISOString(),
           endDate: values.endDate.toISOString(),
-          // We'll handle candidates separately
         });
         
         toast({
@@ -139,17 +137,13 @@ const CreateElection = () => {
           description: "The election has been updated successfully.",
         });
         
-        // Handle candidates update after the election update
         if (candidates.length > 0) {
-          const election = getElection(electionId);
+          const election = getElection(electionId!);
           if (election) {
-            // Get existing candidate IDs in the election
             const existingCandidateIds = new Set(election.candidates.map(c => c.id));
             
-            // Process each candidate in our local state
             for (const candidate of candidates) {
               if (candidate.id && existingCandidateIds.has(candidate.id)) {
-                // Update existing candidate
                 await updateCandidate(candidate.id, {
                   name: candidate.name,
                   description: candidate.description,
@@ -157,8 +151,7 @@ const CreateElection = () => {
                 });
                 existingCandidateIds.delete(candidate.id);
               } else if (!candidate.id) {
-                // Add new candidate
-                await addCandidate(electionId, {
+                await addCandidate(electionId!, {
                   name: candidate.name,
                   description: candidate.description,
                   imageUrl: candidate.imageUrl
@@ -166,14 +159,13 @@ const CreateElection = () => {
               }
             }
             
-            // Delete candidates that are no longer in our local state
             for (const candidateId of existingCandidateIds) {
               await deleteCandidate(candidateId);
             }
           }
         }
       } else {
-        // Create new election
+        console.log("Creating new election");
         const newElectionId = await createElection({
           title: values.title,
           description: values.description,
@@ -181,7 +173,6 @@ const CreateElection = () => {
           endDate: values.endDate.toISOString(),
         });
         
-        // Add candidates to the new election
         if (candidates.length > 0 && newElectionId) {
           for (const candidate of candidates) {
             await addCandidate(newElectionId, {
@@ -200,6 +191,7 @@ const CreateElection = () => {
       
       navigate("/admin/elections");
     } catch (error: any) {
+      console.error("Form submission error:", error);
       toast({
         title: "Error",
         description: error.message || `Failed to ${isEditMode ? 'update' : 'create'} election`,
@@ -212,7 +204,6 @@ const CreateElection = () => {
 
   const handleCandidateSubmit = (data: CandidateForm) => {
     if (editingCandidateIndex !== null) {
-      // Update existing candidate
       const updatedCandidates = [...candidates];
       updatedCandidates[editingCandidateIndex] = {
         ...updatedCandidates[editingCandidateIndex],
@@ -221,11 +212,9 @@ const CreateElection = () => {
       setCandidates(updatedCandidates);
       setEditingCandidateIndex(null);
     } else {
-      // Add new candidate
       setCandidates([...candidates, data]);
     }
     
-    // Reset form and close dialog
     candidateForm.reset({
       name: "",
       description: "",
@@ -434,7 +423,6 @@ const CreateElection = () => {
                       <DialogTitle>{editingCandidateIndex !== null ? 'Edit Candidate' : 'Add New Candidate'}</DialogTitle>
                     </DialogHeader>
                     
-                    {/* Wrap candidate form in FormProvider */}
                     <Form {...candidateForm}>
                       <form onSubmit={candidateForm.handleSubmit(handleCandidateSubmit)} className="space-y-4 py-4">
                         <div className="space-y-4">
