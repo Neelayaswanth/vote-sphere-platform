@@ -146,7 +146,7 @@ export type Database = {
           id: string
           is_from_admin: boolean
           message: string
-          read: boolean
+          read: boolean | null
           receiver_id: string | null
           sender_id: string
           sender_name: string
@@ -156,9 +156,9 @@ export type Database = {
           id?: string
           is_from_admin?: boolean
           message: string
-          read?: boolean
+          read?: boolean | null
           receiver_id?: string | null
-          sender_id: string
+          sender_id?: string
           sender_name: string
         }
         Update: {
@@ -166,7 +166,7 @@ export type Database = {
           id?: string
           is_from_admin?: boolean
           message?: string
-          read?: boolean
+          read?: boolean | null
           receiver_id?: string | null
           sender_id?: string
           sender_name?: string

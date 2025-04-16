@@ -247,20 +247,48 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     
     try {
+      console.log("Sending message as:", user.role, "receiver:", receiverId);
+      
+      // Ensure receiver_id is set correctly for admin responses
+      let finalReceiverId = receiverId;
+      
+      if (user.role === 'admin' && !receiverId) {
+        if (activeThread) {
+          finalReceiverId = activeThread.userId;
+          console.log("Setting receiverId from activeThread:", finalReceiverId);
+        } else {
+          console.error("No active thread or receiverId for admin message");
+          toast({
+            title: "Error",
+            description: "No recipient selected for your message",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
       const newMessage = {
         sender_id: user.id,
         sender_name: user.name,
-        receiver_id: receiverId || null,
+        receiver_id: finalReceiverId,
         message,
         is_from_admin: user.role === 'admin',
         read: false
       };
       
-      const { error } = await supabase
+      console.log("Inserting new message:", newMessage);
+      
+      const { data, error } = await supabase
         .from('support_messages')
-        .insert([newMessage]);
+        .insert([newMessage])
+        .select();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting message:", error);
+        throw error;
+      }
+      
+      console.log("Message sent successfully:", data);
       
       toast({
         title: "Message sent",

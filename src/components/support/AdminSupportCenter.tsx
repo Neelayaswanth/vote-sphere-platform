@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +58,15 @@ export default function AdminSupportCenter() {
   };
   
   const handleSendMessage = async () => {
-    if (!activeThread) return;
+    if (!activeThread) {
+      toast({
+        title: "No recipient selected",
+        description: "Please select a conversation first before sending a message.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!newMessage.trim()) {
       toast({
         title: "Empty message",
@@ -72,6 +79,7 @@ export default function AdminSupportCenter() {
     setSending(true);
     
     try {
+      console.log("Sending message to:", activeThread.userId);
       await sendMessage(newMessage, activeThread.userId);
       setNewMessage('');
     } catch (error) {

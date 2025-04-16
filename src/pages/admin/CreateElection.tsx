@@ -116,6 +116,13 @@ const CreateElection = () => {
       }
     } else {
       console.log("Create new election mode");
+      form.reset({
+        title: "",
+        description: "",
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+      setCandidates([]);
     }
   }, [electionId, getElection, form, navigate, toast, isEditMode]);
 
