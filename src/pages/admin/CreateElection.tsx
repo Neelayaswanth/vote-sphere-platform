@@ -1,121 +1,183 @@
-import React, { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, Plus, Save, User, Trash2, Edit2, ImageIcon } from "lucide-react";
+import { useToast } from '@/components/ui/use-toast';
 
-import { useElection } from "@/contexts/ElectionContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, CalendarIcon, PlusCircle, XCircle, Save } from 'lucide-react';
 
+import { useElection } from '@/contexts/ElectionContext';
+
+// Form Schema
 const formSchema = z.object({
-  title: z.string().min(3, {
-    message: "Election title must be at least 3 characters.",
-  }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
-  }),
-  startDate: z.date({
-    required_error: "Start date is required.",
-  }),
-  endDate: z.date({
-    required_error: "End date is required.",
-  })
-}).refine(data => data.endDate > data.startDate, {
-  message: "End date must be after start date",
-  path: ["endDate"],
-});
-
-const candidateSchema = z.object({
-  name: z.string().min(2, { message: "Candidate name must be at least 2 characters." }),
+  title: z.string().min(3, { message: "Title must be at least 3 characters" }),
   description: z.string().optional(),
-  imageUrl: z.string().optional(),
-});
+  startDate: z.date(),
+  endDate: z.date(),
+}).refine(
+  data => data.endDate > data.startDate,
+  {
+    message: "End date must be after start date",
+    path: ["endDate"],
+  }
+);
 
-interface CandidateForm {
-  id?: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
-}
+export type ElectionFormValues = z.infer<typeof formSchema>;
 
-const CreateElection = () => {
-  const { electionId } = useParams<{ electionId?: string }>();
-  const { createElection, getElection, updateElection, addCandidate, updateCandidate, deleteCandidate } = useElection();
-  const navigate = useNavigate();
+export default function CreateElection() {
+  const { electionId } = useParams();
+  const isEditMode = Boolean(electionId);
+  
+  const [candidates, setCandidates] = useState<{ name: string; description: string }[]>([]);
+  const [newCandidateName, setNewCandidateName] = useState('');
+  const [newCandidateDescription, setNewCandidateDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [candidates, setCandidates] = useState<CandidateForm[]>([]);
-  const [isAddingCandidate, setIsAddingCandidate] = useState(false);
-  const [editingCandidateIndex, setEditingCandidateIndex] = useState<number | null>(null);
-  const isEditMode = !!electionId;
-
+  const navigate = useNavigate();
+  const { createElection, getElection, updateElection } = useElection();
+  
   console.log("CreateElection component - isEditMode:", isEditMode, "electionId:", electionId);
-
-  const form = useForm<z.infer<typeof formSchema>>({
+  
+  const form = useForm<ElectionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
       startDate: new Date(),
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 1 week later
     },
   });
-
-  const candidateForm = useForm<CandidateForm>({
-    resolver: zodResolver(candidateSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      imageUrl: "",
-    },
-  });
-
-  useEffect(() => {
-    if (isEditMode) {
-      console.log("Edit mode detected, loading election data for ID:", electionId);
-      const election = getElection(electionId);
+  
+  const addCandidate = () => {
+    if (newCandidateName.trim()) {
+      setCandidates([
+        ...candidates,
+        {
+          name: newCandidateName,
+          description: newCandidateDescription,
+        },
+      ]);
+      setNewCandidateName('');
+      setNewCandidateDescription('');
+    }
+  };
+  
+  const removeCandidate = (index: number) => {
+    setCandidates(candidates.filter((_, i) => i !== index));
+  };
+  
+  const onSubmit = async (values: ElectionFormValues) => {
+    if (candidates.length < 2) {
+      toast({
+        title: "Error",
+        description: "You need at least 2 candidates for an election",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSaving(true);
+    
+    try {
+      const electionData = {
+        ...values,
+        candidates,
+      };
       
-      if (election) {
-        console.log("Found election data:", election);
-        form.reset({
-          title: election.title,
-          description: election.description,
-          startDate: new Date(election.startDate),
-          endDate: new Date(election.endDate),
-        });
-        
-        const electionCandidates = election.candidates.map(candidate => ({
-          id: candidate.id,
-          name: candidate.name,
-          description: candidate.description || '',
-          imageUrl: candidate.imageUrl || '',
-        }));
-        
-        setCandidates(electionCandidates);
-      } else {
-        console.error("Election not found for ID:", electionId);
+      if (isEditMode && electionId) {
+        console.log("Updating election with ID:", electionId);
+        await updateElection(electionId, electionData);
         toast({
-          title: "Error",
-          description: "Election not found",
-          variant: "destructive",
+          title: "Success",
+          description: "Election updated successfully",
         });
-        navigate('/admin/elections');
+      } else {
+        console.log("Creating new election");
+        await createElection(electionData);
+        toast({
+          title: "Success",
+          description: "Election created successfully",
+        });
       }
+      
+      navigate('/admin/elections');
+    } catch (error) {
+      console.error("Error saving election:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save election. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  // Load election data for editing
+  useEffect(() => {
+    if (isEditMode && electionId) {
+      console.log("Fetching election for editing:", electionId);
+      
+      const loadElection = async () => {
+        try {
+          const election = await getElection(electionId);
+          
+          if (election) {
+            console.log("Loaded election data:", election);
+            
+            // Set form values
+            form.reset({
+              title: election.title,
+              description: election.description || "",
+              startDate: new Date(election.start_date),
+              endDate: new Date(election.end_date),
+            });
+            
+            // Set candidates
+            if (election.candidates && election.candidates.length > 0) {
+              setCandidates(
+                election.candidates.map((candidate: any) => ({
+                  name: candidate.name,
+                  description: candidate.description || "",
+                }))
+              );
+            }
+          } else {
+            console.error("Election not found");
+            toast({
+              title: "Error",
+              description: "Election not found",
+              variant: "destructive",
+            });
+            navigate('/admin/elections');
+          }
+        } catch (error) {
+          console.error("Error loading election:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load election details",
+            variant: "destructive",
+          });
+          navigate('/admin/elections');
+        }
+      };
+      
+      loadElection();
     } else {
       console.log("Create new election mode");
+      // Reset form for create mode
       form.reset({
         title: "",
         description: "",
@@ -126,443 +188,237 @@ const CreateElection = () => {
     }
   }, [electionId, getElection, form, navigate, toast, isEditMode]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      setIsSubmitting(true);
-      
-      if (isEditMode) {
-        console.log("Updating existing election with ID:", electionId);
-        await updateElection(electionId!, {
-          title: values.title,
-          description: values.description,
-          startDate: values.startDate.toISOString(),
-          endDate: values.endDate.toISOString(),
-        });
-        
-        toast({
-          title: "Election Updated",
-          description: "The election has been updated successfully.",
-        });
-        
-        if (candidates.length > 0) {
-          const election = getElection(electionId!);
-          if (election) {
-            const existingCandidateIds = new Set(election.candidates.map(c => c.id));
-            
-            for (const candidate of candidates) {
-              if (candidate.id && existingCandidateIds.has(candidate.id)) {
-                await updateCandidate(candidate.id, {
-                  name: candidate.name,
-                  description: candidate.description,
-                  imageUrl: candidate.imageUrl
-                });
-                existingCandidateIds.delete(candidate.id);
-              } else if (!candidate.id) {
-                await addCandidate(electionId!, {
-                  name: candidate.name,
-                  description: candidate.description,
-                  imageUrl: candidate.imageUrl
-                });
-              }
-            }
-            
-            for (const candidateId of existingCandidateIds) {
-              await deleteCandidate(candidateId);
-            }
-          }
-        }
-      } else {
-        console.log("Creating new election");
-        const newElectionId = await createElection({
-          title: values.title,
-          description: values.description,
-          startDate: values.startDate.toISOString(),
-          endDate: values.endDate.toISOString(),
-        });
-        
-        if (candidates.length > 0 && newElectionId) {
-          for (const candidate of candidates) {
-            await addCandidate(newElectionId, {
-              name: candidate.name,
-              description: candidate.description,
-              imageUrl: candidate.imageUrl
-            });
-          }
-        }
-        
-        toast({
-          title: "Election Created",
-          description: "Your election has been created successfully.",
-        });
-      }
-      
-      navigate("/admin/elections");
-    } catch (error: any) {
-      console.error("Form submission error:", error);
-      toast({
-        title: "Error",
-        description: error.message || `Failed to ${isEditMode ? 'update' : 'create'} election`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCandidateSubmit = (data: CandidateForm) => {
-    if (editingCandidateIndex !== null) {
-      const updatedCandidates = [...candidates];
-      updatedCandidates[editingCandidateIndex] = {
-        ...updatedCandidates[editingCandidateIndex],
-        ...data,
-      };
-      setCandidates(updatedCandidates);
-      setEditingCandidateIndex(null);
-    } else {
-      setCandidates([...candidates, data]);
-    }
-    
-    candidateForm.reset({
-      name: "",
-      description: "",
-      imageUrl: "",
-    });
-    setIsAddingCandidate(false);
-  };
-
-  const handleEditCandidate = (index: number) => {
-    const candidate = candidates[index];
-    candidateForm.reset({
-      name: candidate.name,
-      description: candidate.description || "",
-      imageUrl: candidate.imageUrl || "",
-    });
-    setEditingCandidateIndex(index);
-    setIsAddingCandidate(true);
-  };
-
-  const handleRemoveCandidate = (index: number) => {
-    const updatedCandidates = [...candidates];
-    updatedCandidates.splice(index, 1);
-    setCandidates(updatedCandidates);
-  };
-
   return (
     <div className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Election' : 'Create New Election'}</h1>
-        <Button onClick={() => navigate('/admin/elections')} variant="outline">
-          Cancel
-        </Button>
-      </div>
+      <h1 className="text-3xl font-bold mb-6">
+        {isEditMode ? "Edit Election" : "Create New Election"}
+      </h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="w-full">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
             <CardHeader>
               <CardTitle>Election Details</CardTitle>
               <CardDescription>
-                Enter the details for your{isEditMode ? ' ' : ' new '}election campaign
+                Enter the details for the election
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Election Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. School President Election 2025" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Choose a clear and descriptive title for your election.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Provide details about the election..." 
-                            className="min-h-[120px]" 
-                            {...field} 
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Election title" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      A short title for the election
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe the election purpose"
+                        {...field}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Additional information about this election
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className="pl-3 text-left font-normal flex justify-between items-center"
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="h-4 w-4 opacity-70" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
                           />
-                        </FormControl>
-                        <FormDescription>
-                          Describe the purpose of this election and any relevant information for voters.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Start Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date < new Date() && !isEditMode}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>End Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => 
-                                  (date < new Date() && !isEditMode) || 
-                                  (form.getValues().startDate && date < form.getValues().startDate)
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="pt-4">
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isSubmitting}
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {isEditMode ? "Update Election" : "Create Election"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        When the election will start
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className="pl-3 text-left font-normal flex justify-between items-center"
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="h-4 w-4 opacity-70" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        When the election will end
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
-        </div>
-        
-        <div>
+          
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Candidates</CardTitle>
-                <Dialog open={isAddingCandidate} onOpenChange={setIsAddingCandidate}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setEditingCandidateIndex(null);
-                      candidateForm.reset({
-                        name: "",
-                        description: "",
-                        imageUrl: "",
-                      });
-                    }}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Candidate
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{editingCandidateIndex !== null ? 'Edit Candidate' : 'Add New Candidate'}</DialogTitle>
-                    </DialogHeader>
-                    
-                    <Form {...candidateForm}>
-                      <form onSubmit={candidateForm.handleSubmit(handleCandidateSubmit)} className="space-y-4 py-4">
-                        <div className="space-y-4">
-                          <FormField
-                            control={candidateForm.control}
-                            name="name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Candidate name" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={candidateForm.control}
-                            name="description"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Description</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    placeholder="Brief candidate description..." 
-                                    className="min-h-[80px]"
-                                    {...field} 
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={candidateForm.control}
-                            name="imageUrl"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Profile Image URL</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    placeholder="https://example.com/image.jpg" 
-                                    {...field}
-                                    value={field.value || ''} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button type="button" variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button type="submit">{editingCandidateIndex !== null ? 'Update' : 'Add'} Candidate</Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <CardTitle>Candidates</CardTitle>
               <CardDescription>
-                Add the candidates who will be running in this election
+                Add candidates for this election (minimum 2 required)
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {candidates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No candidates added yet</p>
-                  <p className="text-sm">Click the "Add Candidate" button to get started</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {candidates.map((candidate, index) => (
-                    <div key={index} className="flex items-start p-3 border rounded-md">
-                      <Avatar className="h-10 w-10 mr-3 flex-shrink-0">
-                        {candidate.imageUrl ? (
-                          <AvatarImage src={candidate.imageUrl} alt={candidate.name} />
-                        ) : (
-                          <AvatarFallback>
-                            {candidate.name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm">{candidate.name}</h4>
-                        {candidate.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {candidate.description}
-                          </p>
-                        )}
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {candidates.length > 0 ? (
+                  candidates.map((candidate, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start space-x-4 p-4 border rounded-md"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-medium">{candidate.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {candidate.description || "No description provided"}
+                        </p>
                       </div>
-                      <div className="flex space-x-1 ml-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditCandidate(index)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRemoveCandidate(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCandidate(index)}
+                      >
+                        <XCircle className="h-5 w-5 text-destructive" />
+                      </Button>
                     </div>
-                  ))}
+                  ))
+                ) : (
+                  <div className="text-center p-4 border rounded-md text-muted-foreground">
+                    No candidates added yet. Add at least 2 candidates.
+                  </div>
+                )}
+              </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="space-y-4">
+                <h4 className="font-medium">Add a Candidate</h4>
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="md:col-span-3">
+                      <Input
+                        placeholder="Candidate Name"
+                        value={newCandidateName}
+                        onChange={(e) => setNewCandidateName(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={addCandidate}
+                      disabled={!newCandidateName.trim()}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add
+                    </Button>
+                  </div>
+                  <Textarea
+                    placeholder="Candidate Description (optional)"
+                    value={newCandidateDescription}
+                    onChange={(e) => setNewCandidateDescription(e.target.value)}
+                  />
                 </div>
-              )}
+              </div>
             </CardContent>
-            <CardFooter className="block border-t p-4">
-              <p className="text-sm text-muted-foreground">
-                {isEditMode 
-                  ? "Changes to candidates will be saved when you update the election."
-                  : "Candidates can be added after creating the election."}
-              </p>
-            </CardFooter>
           </Card>
-        </div>
-      </div>
+          
+          <div className="flex justify-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/admin/elections')}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isEditMode ? "Update Election" : "Create Election"}
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
-};
-
-export default CreateElection;
+}

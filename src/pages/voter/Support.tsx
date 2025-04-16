@@ -7,12 +7,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSupport, SupportMessage } from '@/contexts/SupportContext';
 import { HelpCircle, Loader2, MessageCircle, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function Support() {
   const { userMessages, sendMessage, loading, unreadMessagesCount } = useSupport();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   useEffect(() => {
     // Scroll to bottom when new messages arrive
@@ -27,15 +29,31 @@ export default function Support() {
   }, [userMessages]);
   
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim()) {
+      toast({
+        title: "Empty message",
+        description: "Please enter a message before sending.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setSending(true);
     
     try {
       await sendMessage(newMessage);
       setNewMessage('');
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent to our support team.",
+      });
     } catch (error) {
       console.error('Error sending support message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setSending(false);
     }

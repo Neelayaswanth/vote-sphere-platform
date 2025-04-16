@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Loader2, MessageSquare, Search, Send } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function Support() {
   const { adminThreads, activeThread, setActiveThread, sendMessage, markThreadAsRead, loading, unreadMessagesCount } = useSupport();
@@ -16,6 +17,7 @@ export default function Support() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   useEffect(() => {
     // Debug: Log the current state to help diagnose issues
@@ -53,16 +55,41 @@ export default function Support() {
   };
   
   const handleSendMessage = async () => {
-    if (!activeThread) return;
-    if (!newMessage.trim()) return;
+    if (!activeThread) {
+      toast({
+        title: "No recipient selected",
+        description: "Please select a conversation first before sending a message.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!newMessage.trim()) {
+      toast({
+        title: "Empty message",
+        description: "Please enter a message before sending.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setSending(true);
     
     try {
+      console.log("Sending message to:", activeThread.userId);
       await sendMessage(newMessage, activeThread.userId);
       setNewMessage('');
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully.",
+      });
     } catch (error) {
       console.error('Error sending support message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setSending(false);
     }
