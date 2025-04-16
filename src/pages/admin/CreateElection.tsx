@@ -91,8 +91,12 @@ export default function CreateElection() {
     setSaving(true);
     
     try {
+      // Format dates to ISO string for API compatibility
       const electionData = {
-        ...values,
+        title: values.title,
+        description: values.description || "",
+        startDate: values.startDate.toISOString(),
+        endDate: values.endDate.toISOString(),
         candidates,
       };
       
@@ -137,12 +141,12 @@ export default function CreateElection() {
           if (election) {
             console.log("Loaded election data:", election);
             
-            // Set form values
+            // Convert string dates to Date objects for the form
             form.reset({
               title: election.title,
               description: election.description || "",
-              startDate: new Date(election.start_date),
-              endDate: new Date(election.end_date),
+              startDate: new Date(election.startDate),
+              endDate: new Date(election.endDate),
             });
             
             // Set candidates
