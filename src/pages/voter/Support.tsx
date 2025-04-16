@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +40,7 @@ export default function Support() {
     setSending(true);
     
     try {
+      // No need to pass receiverId for voter messages
       await sendMessage(newMessage);
       setNewMessage('');
       toast({

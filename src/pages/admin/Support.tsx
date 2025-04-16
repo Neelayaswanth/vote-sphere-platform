@@ -77,7 +77,8 @@ export default function Support() {
     
     try {
       console.log("Sending message to:", activeThread.userId);
-      await sendMessage(newMessage, activeThread.userId);
+      // No need to pass receiverId, it will be taken from activeThread
+      await sendMessage(newMessage);
       setNewMessage('');
       toast({
         title: "Message sent",
