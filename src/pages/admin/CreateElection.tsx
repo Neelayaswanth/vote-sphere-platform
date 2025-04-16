@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, PlusCircle, Save, Trash2, X } from 'lucide-react';
+import { CalendarIcon, Loader2, PlusCircle, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { createElection, getElectionById, updateElection } from '@/services/electionService';
+import { createElection, getElectionById, updateElection, Candidate } from '@/services/electionService';
 
 // Define the form schema with Zod
 const formSchema = z.object({
@@ -34,17 +34,10 @@ const formSchema = z.object({
 // Define the form values type
 type FormValues = z.infer<typeof formSchema>;
 
-// Define the candidate type
-interface Candidate {
-  id?: string;
-  name: string;
-  description: string;
-}
-
 export default function CreateElection() {
-  const router = useRouter();
-  const { id } = router.query;
-  const editingElectionId = typeof id === 'string' ? id : undefined;
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const editingElectionId = id;
   
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [newCandidateName, setNewCandidateName] = useState('');
@@ -154,7 +147,7 @@ export default function CreateElection() {
             description: "Election updated successfully",
           });
           
-          router.push(`/admin/election-management`);
+          navigate(`/admin/elections`);
         }
       } else {
         // Create new election
@@ -166,7 +159,7 @@ export default function CreateElection() {
             description: "Election created successfully",
           });
           
-          router.push(`/admin/election-management`);
+          navigate(`/admin/elections`);
         }
       }
     } catch (error) {
@@ -342,7 +335,7 @@ export default function CreateElection() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.back()}
+                      onClick={() => navigate('/admin/elections')}
                     >
                       Cancel
                     </Button>
