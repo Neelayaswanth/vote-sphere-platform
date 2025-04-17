@@ -249,10 +249,28 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       console.log("Sending message as:", user.role, "receiver:", receiverId);
       
-      // Fix for receiverId handling
       let finalReceiverId = null;
       
-      if (user.role === 'admin' && activeThread) {
+      // For voter messages - find an admin to receive the message
+      if (user.role === 'voter') {
+        // Get the first admin from the database
+        const { data: admins, error: adminError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'admin')
+          .limit(1);
+          
+        if (adminError) throw adminError;
+        
+        if (admins && admins.length > 0) {
+          finalReceiverId = admins[0].id;
+          console.log("Found admin receiver:", finalReceiverId);
+        } else {
+          console.log("No admin found to receive the message");
+        }
+      } 
+      // For admin messages - get receiver from active thread
+      else if (user.role === 'admin' && activeThread) {
         finalReceiverId = activeThread.userId;
         console.log("Setting receiverId from activeThread:", finalReceiverId);
       } else if (receiverId) {
