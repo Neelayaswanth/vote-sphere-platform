@@ -26,7 +26,6 @@ import VotingHistory from "./pages/voter/VotingHistory";
 import VoterSettings from "./pages/voter/VoterSettings";
 import VoterSupport from "./pages/voter/Support";
 import DeveloperContact from "./pages/voter/DeveloperContact";
-import VoterContent from "./pages/voter/Content";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -36,7 +35,6 @@ import CreateElection from "./pages/admin/CreateElection";
 import ActivityLogs from "./pages/admin/ActivityLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminSupport from "./pages/admin/Support";
-import AdminContent from "./pages/admin/Content";
 
 // Not found page
 import NotFound from "./pages/NotFound";
@@ -69,7 +67,6 @@ const App = () => (
                         <Route path="support" element={<VoterSupport />} />
                         <Route path="settings" element={<VoterSettings />} />
                         <Route path="developer" element={<DeveloperContact />} />
-                        <Route path="content" element={<VoterContent />} />
                       </Route>
                       
                       {/* Admin Routes - Protected */}
@@ -82,7 +79,6 @@ const App = () => (
                         <Route path="activity-logs" element={<ActivityLogs />} />
                         <Route path="support" element={<AdminSupport />} />
                         <Route path="settings" element={<AdminSettings />} />
-                        <Route path="content" element={<AdminContent />} />
                       </Route>
                       
                       {/* Catch-all route for 404 */}
