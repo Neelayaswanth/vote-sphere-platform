@@ -54,14 +54,14 @@ const AdminDashboard = () => {
     if (elections) {
       const active = elections.filter(
         (election) => 
-          new Date(election.end_date) > new Date()
+          new Date(election.endDate) > new Date()
       ).length;
       setActiveElections(active);
 
       // Set the first active election as selected by default
       if (elections.length > 0 && !selectedElection) {
         const activeElection = elections.find(
-          (election) => new Date(election.end_date) > new Date()
+          (election) => new Date(election.endDate) > new Date()
         );
         if (activeElection) {
           setSelectedElection(activeElection.id);
@@ -124,7 +124,7 @@ const AdminDashboard = () => {
 
   // Display the 5 most recent voters
   const recentVoters = voters ? [...voters]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .sort((a, b) => new Date(b.registeredDate).getTime() - new Date(a.registeredDate).getTime())
     .slice(0, 5) : [];
 
   return (
@@ -242,7 +242,7 @@ const AdminDashboard = () => {
                   <p className="font-medium">Upcoming Election</p>
                   <p className="text-sm text-muted-foreground">
                     {elections && elections.length > 0 
-                      ? `"${elections[0]?.title}" starts on ${new Date(elections[0]?.start_date).toLocaleDateString()}`
+                      ? `"${elections[0]?.title}" starts on ${new Date(elections[0]?.startDate).toLocaleDateString()}`
                       : "No upcoming elections"}
                   </p>
                   <p className="text-xs text-muted-foreground">1 hour ago</p>
@@ -376,8 +376,8 @@ const AdminDashboard = () => {
                 <ScrollArea className="h-[250px] pr-4">
                   {elections && elections
                     .filter(election => 
-                      new Date(election.start_date) <= new Date() && 
-                      new Date(election.end_date) >= new Date()
+                      new Date(election.startDate) <= new Date() && 
+                      new Date(election.endDate) >= new Date()
                     )
                     .map(election => (
                       <div key={election.id} className="mb-3 pb-3 border-b last:border-0">
@@ -385,7 +385,7 @@ const AdminDashboard = () => {
                           <div>
                             <p className="font-medium">{election.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Ends {format(new Date(election.end_date), 'MMM dd, yyyy')}
+                              Ends {format(new Date(election.endDate), 'MMM dd, yyyy')}
                             </p>
                             <Badge variant="secondary" className="mt-1">
                               Active
@@ -402,8 +402,8 @@ const AdminDashboard = () => {
                   }
                   
                   {elections && elections.filter(election => 
-                    new Date(election.start_date) <= new Date() && 
-                    new Date(election.end_date) >= new Date()
+                    new Date(election.startDate) <= new Date() && 
+                    new Date(election.endDate) >= new Date()
                   ).length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       No active elections found
@@ -415,14 +415,14 @@ const AdminDashboard = () => {
               <TabsContent value="upcoming">
                 <ScrollArea className="h-[250px] pr-4">
                   {elections && elections
-                    .filter(election => new Date(election.start_date) > new Date())
+                    .filter(election => new Date(election.startDate) > new Date())
                     .map(election => (
                       <div key={election.id} className="mb-3 pb-3 border-b last:border-0">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-medium">{election.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Starts {format(new Date(election.start_date), 'MMM dd, yyyy')}
+                              Starts {format(new Date(election.startDate), 'MMM dd, yyyy')}
                             </p>
                             <Badge variant="outline" className="mt-1">
                               Upcoming
@@ -439,7 +439,7 @@ const AdminDashboard = () => {
                   }
                   
                   {elections && elections.filter(election => 
-                    new Date(election.start_date) > new Date()
+                    new Date(election.startDate) > new Date()
                   ).length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       No upcoming elections found
@@ -451,14 +451,14 @@ const AdminDashboard = () => {
               <TabsContent value="past">
                 <ScrollArea className="h-[250px] pr-4">
                   {elections && elections
-                    .filter(election => new Date(election.end_date) < new Date())
+                    .filter(election => new Date(election.endDate) < new Date())
                     .map(election => (
                       <div key={election.id} className="mb-3 pb-3 border-b last:border-0">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-medium">{election.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Ended {format(new Date(election.end_date), 'MMM dd, yyyy')}
+                              Ended {format(new Date(election.endDate), 'MMM dd, yyyy')}
                             </p>
                             <Badge variant="secondary" className="mt-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
                               Completed
@@ -475,7 +475,7 @@ const AdminDashboard = () => {
                   }
                   
                   {elections && elections.filter(election => 
-                    new Date(election.end_date) < new Date()
+                    new Date(election.endDate) < new Date()
                   ).length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       No past elections found
