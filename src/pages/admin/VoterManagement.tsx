@@ -27,7 +27,8 @@ import {
   Search, 
   UserPlus,
   MessageSquare,
-  Send
+  Send,
+  RefreshCcw
 } from 'lucide-react';
 import { useVoter } from '@/contexts/VoterContext';
 import { useElection } from '@/contexts/ElectionContext';
@@ -64,25 +65,52 @@ export default function VoterManagement() {
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState<any>(null);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const refreshVoters = async () => {
+    setRefreshing(true);
+    try {
+      // Force refresh by triggering a state change
+      setLocalLoading(true);
+      // Wait a bit to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Re-filter the voters with current search query
+      filterAndPaginateVoters();
+      
+      toast({
+        title: "Refreshed",
+        description: "Voter list has been refreshed.",
+      });
+    } catch (error) {
+      console.error("Error refreshing voters:", error);
+    } finally {
+      setRefreshing(false);
+      setLocalLoading(false);
+    }
+  };
+  
+  const filterAndPaginateVoters = () => {
+    // Filter voters based on search query
+    const filtered = searchQuery 
+      ? voters.filter(voter => 
+          voter.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : [...voters];
+    
+    // Update total pages
+    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    
+    // Paginate the results
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    setFilteredVoters(filtered.slice(start, end));
+  };
   
   useEffect(() => {
     if (!votersLoading) {
       setLocalLoading(false);
-      
-      // Filter voters based on search query
-      const filtered = searchQuery 
-        ? voters.filter(voter => 
-            voter.name.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        : [...voters];
-      
-      // Update total pages
-      setTotalPages(Math.ceil(filtered.length / itemsPerPage));
-      
-      // Paginate the results
-      const start = (currentPage - 1) * itemsPerPage;
-      const end = start + itemsPerPage;
-      setFilteredVoters(filtered.slice(start, end));
+      filterAndPaginateVoters();
     }
   }, [voters, searchQuery, currentPage, votersLoading]);
   
@@ -300,6 +328,14 @@ export default function VoterManagement() {
               />
             </div>
             <div className="flex space-x-2 w-full md:w-auto">
+              <Button 
+                variant="outline"
+                onClick={refreshVoters}
+                disabled={refreshing}
+              >
+                <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
               <Button onClick={handleExport} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
                 Export
