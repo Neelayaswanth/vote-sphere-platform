@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, PlusCircle, Edit, Trash2, RefreshCw, Users } from 'lucide-react';
+import { FileText, PlusCircle, Edit, Trash2, RefreshCw, Users, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -22,21 +22,35 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { useVoter } from '@/contexts/VoterContext';
+import { useSupport } from '@/contexts/SupportContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import { Check, X } from 'lucide-react';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/components/ui/table';
+import { useToast } from '@/components/ui/use-toast';
 
 const ElectionManagement = () => {
   const { elections, deleteElection, loading, endElection } = useElection();
   const { voters } = useVoter();
+  const { sendMessage } = useSupport();
+  const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [electionToEnd, setElectionToEnd] = useState<string | null>(null);
   const [selectedElection, setSelectedElection] = useState<any>(null);
   const [votesMapping, setVotesMapping] = useState<{[key: string]: Set<string>}>({});
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [currentElection, setCurrentElection] = useState<any>(null);
+  const [reminderMessage, setReminderMessage] = useState(
+    "Hello! This is a friendly reminder that there is an active election waiting for your vote. Please login to cast your vote as soon as possible."
+  );
+  const [sendingReminders, setSendingReminders] = useState(false);
+  
   const navigate = useNavigate();
 
   const upcomingElections = elections.filter(election => election.status === 'upcoming');
@@ -118,154 +132,229 @@ const ElectionManagement = () => {
     return votesMapping[electionId]?.has(voterId) || false;
   };
 
-  const ElectionCard = ({ election }: { election: any }) => (
-    <Card key={election.id} className="mb-4">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-bold">{election.title}</CardTitle>
-            <CardDescription className="text-sm text-gray-500">
-              {format(new Date(election.startDate), 'MMM d, yyyy')} - {format(new Date(election.endDate), 'MMM d, yyyy')}
-            </CardDescription>
+  const openMassReminderDialog = (election: any) => {
+    setCurrentElection(election);
+    setMessageDialogOpen(true);
+  };
+
+  const getNonVoters = (electionId: string) => {
+    return voters.filter(voter => 
+      voter.status === 'active' && 
+      voter.verified && 
+      !hasVotedInElection(voter.id, electionId)
+    );
+  };
+
+  const handleSendMassReminder = async () => {
+    if (!currentElection) return;
+    
+    const nonVoters = getNonVoters(currentElection.id);
+    if (nonVoters.length === 0) {
+      toast({
+        title: "No recipients",
+        description: "All eligible voters have already voted in this election.",
+      });
+      setMessageDialogOpen(false);
+      return;
+    }
+
+    setSendingReminders(true);
+    
+    try {
+      // Send message to each non-voter
+      const promises = nonVoters.map(voter => 
+        sendMessage(reminderMessage, voter.id)
+      );
+      
+      await Promise.all(promises);
+      
+      toast({
+        title: "Reminders Sent",
+        description: `Vote reminders sent to ${nonVoters.length} voters.`,
+      });
+      setMessageDialogOpen(false);
+    } catch (error) {
+      console.error("Error sending reminders:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to send reminders to some voters. Please try again.",
+      });
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
+  const ElectionCard = ({ election }: { election: any }) => {
+    const nonVoterCount = getNonVoters(election.id).length;
+    
+    return (
+      <Card key={election.id} className="mb-4">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg font-bold">{election.title}</CardTitle>
+              <CardDescription className="text-sm text-gray-500">
+                {format(new Date(election.startDate), 'MMM d, yyyy')} - {format(new Date(election.endDate), 'MMM d, yyyy')}
+              </CardDescription>
+            </div>
+            <Badge className={getBadgeColor(election.status)}>
+              {election.status.charAt(0).toUpperCase() + election.status.slice(1)}
+            </Badge>
           </div>
-          <Badge className={getBadgeColor(election.status)}>
-            {election.status.charAt(0).toUpperCase() + election.status.slice(1)}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pb-2">
-        <p className="text-sm mb-2 line-clamp-2">{election.description}</p>
-        <div className="flex items-center text-sm text-gray-500">
-          <FileText className="h-4 w-4 mr-1" />
-          <span>{election.candidates.length} Candidates</span>
-          <span className="mx-2">•</span>
-          <span>{election.totalVotes} Votes</span>
-        </div>
-      </CardContent>
-      <CardFooter className="pt-2 flex justify-end space-x-2">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Users className="h-4 w-4 mr-1" />
-              Voter Status
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Voter Participation: {election.title}</DialogTitle>
-              <DialogDescription>
-                Track which voters have cast their ballots in this election
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="h-[400px] mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Voter Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Verification</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {voters.length === 0 ? (
+        </CardHeader>
+        <CardContent className="pb-2">
+          <p className="text-sm mb-2 line-clamp-2">{election.description}</p>
+          <div className="flex items-center text-sm text-gray-500">
+            <FileText className="h-4 w-4 mr-1" />
+            <span>{election.candidates.length} Candidates</span>
+            <span className="mx-2">•</span>
+            <span>{election.totalVotes} Votes</span>
+            {election.status === 'active' && (
+              <>
+                <span className="mx-2">•</span>
+                <span>{nonVoterCount} Non-Voters</span>
+              </>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className="pt-2 flex justify-end space-x-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Users className="h-4 w-4 mr-1" />
+                Voter Status
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Voter Participation: {election.title}</DialogTitle>
+                <DialogDescription>
+                  Track which voters have cast their ballots in this election
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="h-[400px] mt-4">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center h-24">
-                        No voters found
-                      </TableCell>
+                      <TableHead>Voter Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Verification</TableHead>
                     </TableRow>
-                  ) : (
-                    voters.map(voter => (
-                      <TableRow key={voter.id}>
-                        <TableCell className="font-medium">{voter.name}</TableCell>
-                        <TableCell>{voter.email}</TableCell>
-                        <TableCell>
-                          {hasVotedInElection(voter.id, election.id) ? (
-                            <Badge className="bg-green-500">
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              Voted
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-red-200 text-red-500">
-                              <X className="h-3.5 w-3.5 mr-1" />
-                              Not Voted
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {voter.verified ? (
-                            <Badge variant="outline" className="border-green-200 text-green-500">
-                              Verified
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-yellow-200 text-yellow-500">
-                              Pending
-                            </Badge>
-                          )}
+                  </TableHeader>
+                  <TableBody>
+                    {voters.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center h-24">
+                          No voters found
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-        <Button variant="outline" size="sm" onClick={() => handleEditElection(election)}>
-          <Edit className="h-4 w-4 mr-1" />
-          Edit
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm">
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
+                    ) : (
+                      voters.map(voter => (
+                        <TableRow key={voter.id}>
+                          <TableCell className="font-medium">{voter.name}</TableCell>
+                          <TableCell>{voter.email}</TableCell>
+                          <TableCell>
+                            {hasVotedInElection(voter.id, election.id) ? (
+                              <Badge className="bg-green-500">
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                Voted
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-red-200 text-red-500">
+                                <X className="h-3.5 w-3.5 mr-1" />
+                                Not Voted
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {voter.verified ? (
+                              <Badge variant="outline" className="border-green-200 text-green-500">
+                                Verified
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-yellow-200 text-yellow-500">
+                                Pending
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          
+          {election.status === 'active' && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => openMassReminderDialog(election)}
+            >
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Remind Non-Voters
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the "{election.title}" election and all associated data.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleDelete(election.id)}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {election.status === 'active' && (
+          )}
+          
+          <Button variant="outline" size="sm" onClick={() => handleEditElection(election)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="mr-2"
-              >
-                End Election
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>End Election</AlertDialogTitle>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to end this election now? This action cannot be undone.
-                  Voters will no longer be able to cast votes.
+                  This action cannot be undone. This will permanently delete the "{election.title}" election and all associated data.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => endElection(election.id)}>
-                  End Election
-                </AlertDialogAction>
+                <AlertDialogAction onClick={() => handleDelete(election.id)}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        )}
-      </CardFooter>
-    </Card>
-  );
+          {election.status === 'active' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  className="mr-2"
+                >
+                  End Election
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End Election</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to end this election now? This action cannot be undone.
+                    Voters will no longer be able to cast votes.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => endElection(election.id)}>
+                    End Election
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </CardFooter>
+      </Card>
+    );
+  };
 
   const EmptyState = ({ message }: { message: string }) => (
     <div className="py-8 text-center">
@@ -338,6 +427,52 @@ const ElectionManagement = () => {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Dialog to send mass reminders */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Voting Reminders</DialogTitle>
+            <DialogDescription>
+              {currentElection && `Send a reminder to all non-voters for "${currentElection.title}" election`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={reminderMessage}
+              onChange={(e) => setReminderMessage(e.target.value)}
+              placeholder="Enter your message here..."
+              className="min-h-[120px]"
+            />
+            {currentElection && (
+              <p className="text-sm text-muted-foreground">
+                This message will be sent to {getNonVoters(currentElection.id).length} voters who haven't voted yet.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleSendMassReminder}
+              disabled={sendingReminders}
+            >
+              {sendingReminders ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Reminders
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

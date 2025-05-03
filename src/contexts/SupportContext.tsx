@@ -51,12 +51,32 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeThread, setActiveThread] = useState<SupportThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [allAdmins, setAllAdmins] = useState<{id: string, name: string}[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
   
   // Default admin user ID - used when a voter sends a message to an admin
   const DEFAULT_ADMIN_ID = '5330569b-3eb5-4e4c-a573-5e9b11d108e8'; // This should be a valid admin ID in your system
+  
+  // Fetch all admin users
+  const fetchAdmins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .eq('role', 'admin');
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setAllAdmins(data);
+        console.log("Fetched admins:", data);
+      }
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+    }
+  };
   
   const fetchUserMessages = async () => {
     if (!user) {
@@ -110,11 +130,15 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         
         // Get all unique user IDs from non-admin messages (senders)
-        const userIds = [...new Set(
-          data
+        // Plus users who received messages from admins
+        const userIds = [...new Set([
+          ...data
             .filter((msg: SupportMessage) => !msg.is_from_admin)
-            .map((msg: SupportMessage) => msg.sender_id)
-        )];
+            .map((msg: SupportMessage) => msg.sender_id),
+          ...data
+            .filter((msg: SupportMessage) => msg.is_from_admin && msg.receiver_id)
+            .map((msg: SupportMessage) => msg.receiver_id as string)
+        ])];
         
         console.log("Unique user IDs:", userIds);
         
@@ -213,6 +237,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
   useEffect(() => {
     if (user) {
+      fetchAdmins(); // Fetch all admins
       fetchUserMessages();
       
       // Set up real-time subscription for new messages
@@ -263,6 +288,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // If admin is sending to a specific user (from parameter)
       else if (user.role === 'admin' && receiverId) {
         finalReceiverId = receiverId;
+        console.log("Setting receiverId from parameter:", finalReceiverId);
       }
       // If voter is sending to admin, use the default admin ID
       else if (user.role === 'voter') {

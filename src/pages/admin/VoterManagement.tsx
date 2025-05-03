@@ -18,7 +18,6 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -26,12 +25,25 @@ import {
   Filter,
   Loader2, 
   Search, 
-  UserPlus 
+  UserPlus,
+  MessageSquare
 } from 'lucide-react';
 import { useVoter } from '@/contexts/VoterContext';
 import { useElection } from '@/contexts/ElectionContext';
+import { useSupport } from '@/contexts/SupportContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VoterVotingStatus from '@/components/admin/VoterVotingStatus';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const itemsPerPage = 10;
 
@@ -39,6 +51,7 @@ export default function VoterManagement() {
   const { toast } = useToast();
   const { voters, updateVoterVerification, updateVoterStatus, exportVotersList, loading: votersLoading } = useVoter();
   const { elections } = useElection();
+  const { sendMessage } = useSupport();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,6 +59,10 @@ export default function VoterManagement() {
   const [localLoading, setLocalLoading] = useState(true);
   const [filteredVoters, setFilteredVoters] = useState<any[]>([]);
   const [selectedElection, setSelectedElection] = useState<string>("");
+  const [reminderMessage, setReminderMessage] = useState("Hello! This is a friendly reminder that there is an active election waiting for your vote. Please login to cast your vote as soon as possible.");
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedVoter, setSelectedVoter] = useState<any>(null);
+  const [messageLoading, setMessageLoading] = useState(false);
   
   useEffect(() => {
     if (!votersLoading) {
@@ -130,6 +147,35 @@ export default function VoterManagement() {
     }
   };
   
+  const handleSendVoteReminder = async () => {
+    if (!selectedVoter) return;
+    
+    setMessageLoading(true);
+    
+    try {
+      await sendMessage(reminderMessage, selectedVoter.id);
+      toast({
+        title: "Reminder Sent",
+        description: `Vote reminder sent to ${selectedVoter.name}.`,
+      });
+      setMessageDialogOpen(false);
+    } catch (error) {
+      console.error("Error sending reminder:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to send reminder. Please try again.",
+      });
+    } finally {
+      setMessageLoading(false);
+    }
+  };
+  
+  const openReminderDialog = (voter: any) => {
+    setSelectedVoter(voter);
+    setMessageDialogOpen(true);
+  };
+  
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
@@ -146,6 +192,10 @@ export default function VoterManagement() {
   );
   
   const VoterItem = ({ voter, onVerify, onBlock, onUnblock }) => {
+    const hasVoted = selectedElection ? 
+      voter.votingHistory.some(vh => vh.electionId === selectedElection) : 
+      false;
+
     return (
       <TableRow>
         <TableCell className="font-medium">{voter.name}</TableCell>
@@ -182,24 +232,37 @@ export default function VoterManagement() {
           )}
         </TableCell>
         <TableCell>
-          {voter.status === 'active' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive border-destructive hover:bg-destructive/10"
-              onClick={() => onBlock(voter.id)}
-            >
-              Block
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onUnblock(voter.id)}
-            >
-              Unblock
-            </Button>
-          )}
+          <div className="flex space-x-2">
+            {selectedElection && !hasVoted && voter.status === 'active' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openReminderDialog(voter)}
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Remind
+              </Button>
+            )}
+            
+            {voter.status === 'active' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive hover:bg-destructive/10"
+                onClick={() => onBlock(voter.id)}
+              >
+                Block
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onUnblock(voter.id)}
+              >
+                Unblock
+              </Button>
+            )}
+          </div>
         </TableCell>
       </TableRow>
     );
@@ -335,6 +398,47 @@ export default function VoterManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog to send vote reminder */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Vote Reminder</DialogTitle>
+            <DialogDescription>
+              {selectedVoter && `Send a reminder to ${selectedVoter.name} to vote in the current election.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={reminderMessage}
+              onChange={(e) => setReminderMessage(e.target.value)}
+              placeholder="Enter your message here..."
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleSendVoteReminder}
+              disabled={messageLoading}
+            >
+              {messageLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Reminder
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
