@@ -21,23 +21,31 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Search, UserPlus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { 
+  Download,
+  Filter,
+  Loader2, 
+  Search, 
+  UserPlus 
+} from 'lucide-react';
 import { useVoter } from '@/contexts/VoterContext';
+import { useElection } from '@/contexts/ElectionContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import VoterVotingStatus from '@/components/admin/VoterVotingStatus';
 
 const itemsPerPage = 10;
 
 export default function VoterManagement() {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const { voters, updateVoterVerification, updateVoterStatus, loading: votersLoading } = useVoter();
+  const { voters, updateVoterVerification, updateVoterStatus, exportVotersList, loading: votersLoading } = useVoter();
+  const { elections } = useElection();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [localLoading, setLocalLoading] = useState(true);
   const [filteredVoters, setFilteredVoters] = useState<any[]>([]);
+  const [selectedElection, setSelectedElection] = useState<string>("");
   
   useEffect(() => {
     if (!votersLoading) {
@@ -105,6 +113,23 @@ export default function VoterManagement() {
     }
   };
   
+  const handleExport = async () => {
+    try {
+      await exportVotersList();
+      toast({
+        title: "Export Successful",
+        description: "The voters list has been exported successfully.",
+      });
+    } catch (error) {
+      console.error("Error exporting voters list:", error);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "Failed to export voters list. Please try again.",
+      });
+    }
+  };
+  
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
@@ -115,6 +140,10 @@ export default function VoterManagement() {
         return 'secondary';
     }
   };
+  
+  const activeElections = elections.filter(election => 
+    election.status === 'active' || election.status === 'completed'
+  );
   
   const VoterItem = ({ voter, onVerify, onBlock, onUnblock }) => {
     return (
@@ -143,6 +172,14 @@ export default function VoterManagement() {
           >
             {voter.status === 'active' ? 'Active' : 'Blocked'}
           </Badge>
+        </TableCell>
+        <TableCell>
+          {selectedElection && (
+            <VoterVotingStatus 
+              voter={voter}
+              electionId={selectedElection} 
+            />
+          )}
         </TableCell>
         <TableCell>
           {voter.status === 'active' ? (
@@ -185,7 +222,7 @@ export default function VoterManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-4">
+          <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-4 mb-4">
             <div className="relative w-full md:w-1/3">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -198,10 +235,38 @@ export default function VoterManagement() {
                 }}
               />
             </div>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Voter
-            </Button>
+            <div className="flex space-x-2 w-full md:w-auto">
+              <Button onClick={handleExport} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Voter
+              </Button>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <Select
+              value={selectedElection}
+              onValueChange={setSelectedElection}
+            >
+              <SelectTrigger className="w-full md:w-[240px]">
+                <div className="flex items-center">
+                  <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by election" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All voters</SelectItem>
+                {activeElections.map((election) => (
+                  <SelectItem key={election.id} value={election.id}>
+                    {election.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <ScrollArea className="my-4">
@@ -213,13 +278,14 @@ export default function VoterManagement() {
                     <TableHead>Email</TableHead>
                     <TableHead>Verification</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Voting Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {localLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                         <p className="mt-2 text-sm text-muted-foreground">Loading voter accounts...</p>
                       </TableCell>
@@ -227,7 +293,7 @@ export default function VoterManagement() {
                   ) : (
                     filteredVoters.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                           <p className="text-muted-foreground">No voter accounts found.</p>
                         </TableCell>
                       </TableRow>

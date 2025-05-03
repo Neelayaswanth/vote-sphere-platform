@@ -4,7 +4,18 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Button } from '@/components/ui/button';
-import { BarChart3, Calendar, LogOut, Menu, Settings, User, Vote, X } from 'lucide-react';
+import { 
+  BarChart3, 
+  Calendar, 
+  Github,
+  HelpCircle,
+  LogOut, 
+  Menu, 
+  Settings, 
+  User, 
+  Vote, 
+  X 
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +34,7 @@ export default function VoterLayout() {
     { path: '/voter/profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
     { path: '/voter/elections', label: 'Elections', icon: <Vote className="w-4 h-4" /> },
     { path: '/voter/history', label: 'Voting History', icon: <Calendar className="w-4 h-4" /> },
+    { path: '/voter/support', label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" /> },
     { path: '/voter/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -70,6 +82,23 @@ export default function VoterLayout() {
                   <span>{item.label}</span>
                 </NavLink>
               ))}
+              
+              <div className="py-2">
+                <div className="h-px bg-border my-2"></div>
+              </div>
+              
+              <NavLink
+                to="/voter/developer"
+                className={({ isActive }) =>
+                  cn(
+                    "nav-link",
+                    isActive ? "active" : "hover:bg-secondary"
+                  )
+                }
+              >
+                <Github className="w-4 h-4" />
+                <span>Developer</span>
+              </NavLink>
             </nav>
           </div>
           
@@ -138,6 +167,24 @@ export default function VoterLayout() {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
+                
+                <div className="py-2">
+                  <div className="h-px bg-border my-2"></div>
+                </div>
+                
+                <NavLink
+                  to="/voter/developer"
+                  className={({ isActive }) =>
+                    cn(
+                      "nav-link",
+                      isActive ? "active" : "hover:bg-secondary"
+                    )
+                  }
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <Github className="w-4 h-4" />
+                  <span>Developer</span>
+                </NavLink>
               </nav>
             </div>
             

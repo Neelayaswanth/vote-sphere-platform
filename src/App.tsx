@@ -25,6 +25,7 @@ import ElectionDetail from "./pages/voter/ElectionDetail";
 import VotingHistory from "./pages/voter/VotingHistory";
 import VoterSettings from "./pages/voter/VoterSettings";
 import VoterSupport from "./pages/voter/Support";
+import DeveloperContact from "./pages/voter/DeveloperContact";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -65,6 +66,7 @@ const App = () => (
                         <Route path="history" element={<VotingHistory />} />
                         <Route path="support" element={<VoterSupport />} />
                         <Route path="settings" element={<VoterSettings />} />
+                        <Route path="developer" element={<DeveloperContact />} />
                       </Route>
                       
                       {/* Admin Routes - Protected */}

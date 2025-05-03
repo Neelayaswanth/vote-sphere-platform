@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useElection, Candidate } from '@/contexts/ElectionContext';
@@ -55,6 +56,7 @@ import {
   Info, 
   Loader,
   Lock, 
+  Trophy,
   Users 
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -72,6 +74,7 @@ export default function ElectionDetail() {
   const [isVoting, setIsVoting] = useState(false);
   const [isReadingGuidelines, setIsReadingGuidelines] = useState(true);
   const [hasUserVoted, setHasUserVoted] = useState(false);
+  const [winnerCandidate, setWinnerCandidate] = useState<Candidate | null>(null);
   
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
   
@@ -86,6 +89,15 @@ export default function ElectionDetail() {
     if (id) {
       const currentElection = getElection(id);
       setElection(currentElection);
+      
+      // Determine the winner if the election is completed
+      if (currentElection && currentElection.status === 'completed' && currentElection.candidates.length > 0) {
+        // Find the candidate with the highest votes
+        const winner = [...currentElection.candidates].sort((a, b) => b.votes - a.votes)[0];
+        setWinnerCandidate(winner);
+      } else {
+        setWinnerCandidate(null);
+      }
     }
   }, [id, getElection]);
   
@@ -236,6 +248,38 @@ export default function ElectionDetail() {
       </div>
       
       <div>{renderElectionStatus()}</div>
+      
+      {election.status === 'completed' && winnerCandidate && (
+        <Card className="border-primary">
+          <CardHeader className="bg-primary/10">
+            <CardTitle className="flex items-center">
+              <Trophy className="h-6 w-6 text-primary mr-2" />
+              Election Winner
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-shrink-0">
+                <Avatar className="h-24 w-24 border-4 border-primary/20">
+                  <AvatarImage src={winnerCandidate.imageUrl} alt={winnerCandidate.name} />
+                  <AvatarFallback className="text-2xl">{winnerCandidate.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="flex-grow text-center md:text-left">
+                <h2 className="text-2xl font-bold mb-1">{winnerCandidate.name}</h2>
+                <p className="text-muted-foreground mb-2">{winnerCandidate.party}</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{winnerCandidate.votes} votes</span>
+                  <span className="text-muted-foreground">({getVotePercentage(winnerCandidate.votes)}% of total votes)</span>
+                </div>
+                <div className="mt-2">
+                  <Progress value={getVotePercentage(winnerCandidate.votes)} className="h-2" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       <Card>
         <CardHeader>
@@ -426,6 +470,10 @@ export default function ElectionDetail() {
                 election.status === 'active' && !hasUserVoted && !isReadingGuidelines
                   ? 'cursor-pointer hover:shadow-md hover:border-primary'
                   : ''
+              } ${
+                election.status === 'completed' && winnerCandidate?.id === candidate.id
+                  ? 'border-primary border-2'
+                  : ''
               }`}
               onClick={() => {
                 if (election.status === 'active' && !hasUserVoted && !isReadingGuidelines) {
@@ -433,14 +481,19 @@ export default function ElectionDetail() {
                 }
               }}
             >
-              <CardHeader className="pb-2">
+              <CardHeader className={`pb-2 ${election.status === 'completed' && winnerCandidate?.id === candidate.id ? 'bg-primary/10' : ''}`}>
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={candidate.imageUrl} alt={candidate.name} />
                     <AvatarFallback>{candidate.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{candidate.name}</CardTitle>
+                  <div className="flex-grow">
+                    <CardTitle className="text-lg flex items-center">
+                      {candidate.name}
+                      {election.status === 'completed' && winnerCandidate?.id === candidate.id && (
+                        <Trophy className="h-4 w-4 ml-2 text-primary" />
+                      )}
+                    </CardTitle>
                     <CardDescription>{candidate.party}</CardDescription>
                   </div>
                 </div>
