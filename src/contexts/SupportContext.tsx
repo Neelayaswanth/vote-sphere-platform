@@ -55,6 +55,9 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { toast } = useToast();
   const { user } = useAuth();
   
+  // Default admin user ID - used when a voter sends a message to an admin
+  const DEFAULT_ADMIN_ID = '5330569b-3eb5-4e4c-a573-5e9b11d108e8'; // This should be a valid admin ID in your system
+  
   const fetchUserMessages = async () => {
     if (!user) {
       setLoading(false);
@@ -250,13 +253,22 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log("Sending message as:", user.role, "receiver:", receiverId);
       
       // Fix for receiverId handling
-      let finalReceiverId = null;
+      let finalReceiverId: string | null = null;
       
+      // If admin is sending to a specific user (from activeThread)
       if (user.role === 'admin' && activeThread) {
         finalReceiverId = activeThread.userId;
         console.log("Setting receiverId from activeThread:", finalReceiverId);
-      } else if (receiverId) {
+      } 
+      // If admin is sending to a specific user (from parameter)
+      else if (user.role === 'admin' && receiverId) {
         finalReceiverId = receiverId;
+      }
+      // If voter is sending to admin, use the default admin ID
+      else if (user.role === 'voter') {
+        // Always send to the default admin when the sender is a voter
+        finalReceiverId = DEFAULT_ADMIN_ID;
+        console.log("Voter sending to default admin:", finalReceiverId);
       }
       
       // Create message object
@@ -265,7 +277,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sender_name: user.name,
         receiver_id: finalReceiverId,
         message,
-        is_from_admin: user.role === 'admin'
+        is_from_admin: user.role === 'admin',
+        read: false // Set to false by default
       };
       
       console.log("Inserting new message:", newMessage);
