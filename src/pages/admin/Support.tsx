@@ -1,15 +1,8 @@
 
-import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useSupport } from '@/contexts/SupportContext';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
-import { Loader2, MessageSquare, Search, Send } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
 import AdminSupportCenter from '@/components/support/AdminSupportCenter';
 
 export default function Support() {

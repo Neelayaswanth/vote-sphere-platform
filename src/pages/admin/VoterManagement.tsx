@@ -26,7 +26,8 @@ import {
   Loader2, 
   Search, 
   UserPlus,
-  MessageSquare
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { useVoter } from '@/contexts/VoterContext';
 import { useElection } from '@/contexts/ElectionContext';

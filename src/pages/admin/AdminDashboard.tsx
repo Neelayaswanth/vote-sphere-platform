@@ -9,16 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupport } from '@/contexts/SupportContext';
 import { format } from 'date-fns';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import {
   Activity,
   AlertTriangle,
   Calendar,
@@ -34,6 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
 import VoterVotingStatus from '@/components/admin/VoterVotingStatus';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import ElectionParticipationChart from '@/components/admin/ElectionParticipationChart';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -45,10 +36,6 @@ const AdminDashboard = () => {
   const [totalVoters, setTotalVoters] = useState(0);
   const [verifiedVoters, setVerifiedVoters] = useState(0);
   const [selectedElection, setSelectedElection] = useState<string>('');
-
-  const [participationData, setParticipationData] = useState<
-    { name: string; voted: number; notVoted: number }[]
-  >([]);
 
   useEffect(() => {
     if (elections) {
@@ -79,48 +66,6 @@ const AdminDashboard = () => {
       setVerifiedVoters(verified);
     }
   }, [voters]);
-
-  useEffect(() => {
-    if (elections?.length && selectedElection) {
-      // Calculate participation data
-      const election = elections.find((e) => e.id === selectedElection);
-      if (election) {
-        // Get all votes for this election
-        const participationByDay = {};
-        
-        // Create data for last 7 days
-        const today = new Date();
-        const data = [];
-        
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(today.getDate() - i);
-          const formattedDate = format(date, 'MMM dd');
-          
-          // Generate random data for demo purposes
-          const totalVoters = Math.floor(Math.random() * 50) + 50; // Between 50-100
-          const voted = Math.floor(Math.random() * totalVoters);
-          const notVoted = totalVoters - voted;
-          
-          data.push({
-            name: formattedDate,
-            voted,
-            notVoted,
-          });
-        }
-        
-        setParticipationData(data);
-      }
-    }
-  }, [elections, selectedElection]);
-
-  // Filter relevant voters for the selected election
-  const electionsMap = new Map();
-  if (elections) {
-    elections.forEach(election => {
-      electionsMap.set(election.id, election);
-    });
-  }
 
   // Display the 5 most recent voters
   const recentVoters = voters ? [...voters]
@@ -207,21 +152,14 @@ const AdminDashboard = () => {
               )}
             </div>
           </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={participationData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <RechartsTooltip />
-                <Legend />
-                <Bar name="Voted" dataKey="voted" fill="#10b981" />
-                <Bar name="Not Voted" dataKey="notVoted" fill="#f97316" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            {selectedElection ? (
+              <ElectionParticipationChart electionId={selectedElection} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">Select an election to view participation data</p>
+              </div>
+            )}
           </CardContent>
         </Card>
         

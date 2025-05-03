@@ -108,7 +108,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       else if (user.role === 'admin') {
         console.log("Fetching support messages for admin");
         
-        // Get all messages
+        // Get all messages - modified to include messages sent directly to specific admins
         const { data, error } = await supabase
           .from('support_messages')
           .select('*')
@@ -140,7 +140,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             .map((msg: SupportMessage) => msg.receiver_id as string)
         ])];
         
-        console.log("Unique user IDs:", userIds);
+        console.log("Unique user IDs for threads:", userIds);
         
         if (userIds.length === 0) {
           console.log("No user threads found");
@@ -168,6 +168,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const userName = userData?.name || 'Unknown User';
             
             // Get messages for this user (incoming and outgoing)
+            // Including messages from/to any admin (not just current admin)
             const userMessages = data.filter((msg: SupportMessage) => 
               (msg.sender_id === userId && !msg.is_from_admin) || 
               (msg.receiver_id === userId && msg.is_from_admin)

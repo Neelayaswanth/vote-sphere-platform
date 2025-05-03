@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, MessageSquare, Search, Send } from 'lucide-react';
+import { Loader2, MessageSquare, Search, Send, RefreshCw } from 'lucide-react';
 import { useSupport, SupportMessage } from '@/contexts/SupportContext';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,7 @@ export default function AdminSupportCenter() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -99,6 +100,29 @@ export default function AdminSupportCenter() {
     }
   };
   
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // This will trigger the useEffect in SupportContext to fetch messages again
+      const currentActive = activeThread;
+      setActiveThread(null);
+      
+      // Small delay to ensure state updates properly
+      setTimeout(() => {
+        setActiveThread(currentActive);
+        setRefreshing(false);
+        
+        toast({
+          title: "Messages Refreshed",
+          description: "Support conversations have been refreshed",
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('Error refreshing messages:', error);
+      setRefreshing(false);
+    }
+  };
+  
   const formatMessageDate = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
@@ -141,8 +165,21 @@ export default function AdminSupportCenter() {
       {/* Thread List */}
       <Card className="lg:col-span-1">
         <CardHeader>
-          <CardTitle>Support Conversations</CardTitle>
-          <CardDescription>Manage support requests from voters</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Support Conversations</CardTitle>
+              <CardDescription>Manage support requests from voters</CardDescription>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh conversations"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <div className="relative mt-3">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
