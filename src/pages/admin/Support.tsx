@@ -4,13 +4,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSupport } from '@/contexts/SupportContext';
 import { Loader2, RefreshCcw } from 'lucide-react';
 import AdminSupportCenter from '@/components/support/AdminSupportCenter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function Support() {
   const { loading, adminThreads, refreshMessages } = useSupport();
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
+  
+  // Load data on mount
+  useEffect(() => {
+    const initialLoad = async () => {
+      try {
+        await refreshMessages();
+      } catch (error) {
+        console.error("Error during initial message load:", error);
+      }
+    };
+    
+    initialLoad();
+  }, [refreshMessages]);
   
   const handleRefresh = async () => {
     setRefreshing(true);

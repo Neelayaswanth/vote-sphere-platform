@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,7 +57,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { user } = useAuth();
   
   // Default admin user ID - used when a voter sends a message to an admin
-  const DEFAULT_ADMIN_ID = '5330569b-3eb5-4e4c-a573-5e9b11d108e8'; // This should be a valid admin ID in your system
+  const DEFAULT_ADMIN_ID = '7e8ded93-bcb9-4a0e-966b-38957a474864'; // This should be a valid admin ID in your system
   
   // Fetch all admin users
   const fetchAdmins = async () => {
@@ -169,10 +168,11 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const userName = userData?.name || 'Unknown User';
             
             // Get messages for this user (incoming and outgoing)
-            // Including messages from/to any admin (not just current admin)
+            // Including messages where receiver_id is NULL (for backward compatibility)
             const userMessages = data.filter((msg: SupportMessage) => 
               (msg.sender_id === userId && !msg.is_from_admin) || 
-              (msg.receiver_id === userId && msg.is_from_admin)
+              (msg.receiver_id === userId && msg.is_from_admin) ||
+              (msg.is_from_admin && !msg.receiver_id && msg.sender_id === DEFAULT_ADMIN_ID)
             );
             
             // Debug: Check if we're finding messages for this user
