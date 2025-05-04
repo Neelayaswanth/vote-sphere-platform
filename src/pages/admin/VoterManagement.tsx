@@ -359,7 +359,7 @@ export default function VoterManagement() {
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All voters</SelectItem>
+                <SelectItem value="all">All voters</SelectItem>
                 {activeElections.map((election) => (
                   <SelectItem key={election.id} value={election.id}>
                     {election.title}
