@@ -38,16 +38,14 @@ export default function AdminSupportCenter() {
   const readThreads = sortedThreads.filter(thread => thread.unreadCount === 0);
   
   useEffect(() => {
+    // Log the current state of threads to help debug
+    console.log("Admin Support Center - Current adminThreads:", adminThreads);
+    console.log("Admin Support Center - Active Thread:", activeThread);
+    
     // Scroll to bottom when active thread changes or new messages arrive
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [activeThread]);
-
-  // Debug logs to help diagnose support threads issues
-  useEffect(() => {
-    console.log("Admin Support Center - Current adminThreads:", adminThreads);
-    console.log("Admin Support Center - Active Thread:", activeThread);
   }, [adminThreads, activeThread]);
   
   const handleThreadClick = (thread: typeof activeThread) => {
@@ -110,6 +108,11 @@ export default function AdminSupportCenter() {
       });
     } catch (error) {
       console.error('Error refreshing messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh messages.",
+        variant: "destructive"
+      });
     } finally {
       setRefreshing(false);
     }

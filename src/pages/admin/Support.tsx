@@ -8,27 +8,27 @@ import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function Support() {
-  const { loading, adminThreads } = useSupport();
+  const { loading, adminThreads, refreshMessages } = useSupport();
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
   
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // We'll use a different approach since refreshMessages doesn't exist
-      // Force a re-render of the AdminSupportCenter component
-      setRefreshing(false);
-      setRefreshing(true);
+      // Use the refreshMessages function from SupportContext
+      await refreshMessages();
       
-      setTimeout(() => {
-        setRefreshing(false);
-        toast({
-          title: "Messages Refreshed",
-          description: "Support messages have been refreshed.",
-        });
-      }, 1000);
+      toast({
+        title: "Messages Refreshed",
+        description: "Support messages have been refreshed.",
+      });
     } catch (error) {
       console.error("Error refreshing messages:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh support messages.",
+        variant: "destructive"
+      });
     } finally {
       setRefreshing(false);
     }
