@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,8 +241,15 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Implement refreshMessages function
   const refreshMessages = async () => {
     setLoading(true);
-    await fetchUserMessages();
-    return Promise.resolve();
+    try {
+      await fetchUserMessages();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing messages:", error);
+      return Promise.reject(error);
+    } finally {
+      setLoading(false);
+    }
   };
   
   useEffect(() => {

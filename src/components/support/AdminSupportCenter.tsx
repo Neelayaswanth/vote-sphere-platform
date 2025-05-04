@@ -23,9 +23,9 @@ export default function AdminSupportCenter() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Filter threads by search query
-  const filteredThreads = adminThreads.filter(thread => 
+  const filteredThreads = adminThreads?.filter(thread => 
     thread.userName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
   
   // Sort threads by last message time (most recent first)
   const sortedThreads = [...filteredThreads].sort((a, b) => 
@@ -146,7 +146,8 @@ export default function AdminSupportCenter() {
     </div>
   );
   
-  if (loading) {
+  // If we're not in the refreshing state, we can show the loading indicator
+  if (loading && !refreshing) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

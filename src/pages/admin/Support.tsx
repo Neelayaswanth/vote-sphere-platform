@@ -10,15 +10,19 @@ import { useToast } from '@/components/ui/use-toast';
 export default function Support() {
   const { loading, adminThreads, refreshMessages } = useSupport();
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const { toast } = useToast();
   
   // Load data on mount
   useEffect(() => {
     const initialLoad = async () => {
       try {
+        setInitialLoading(true);
         await refreshMessages();
       } catch (error) {
         console.error("Error during initial message load:", error);
+      } finally {
+        setInitialLoading(false);
       }
     };
     
@@ -47,7 +51,7 @@ export default function Support() {
     }
   };
   
-  if (loading && !refreshing) {
+  if ((loading || initialLoading) && !refreshing) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
