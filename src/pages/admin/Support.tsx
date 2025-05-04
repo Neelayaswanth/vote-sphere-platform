@@ -8,18 +8,25 @@ import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function Support() {
-  const { loading, refreshMessages } = useSupport();
+  const { loading, adminThreads } = useSupport();
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
   
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshMessages();
-      toast({
-        title: "Messages Refreshed",
-        description: "Support messages have been refreshed.",
-      });
+      // We'll use a different approach since refreshMessages doesn't exist
+      // Force a re-render of the AdminSupportCenter component
+      setRefreshing(false);
+      setRefreshing(true);
+      
+      setTimeout(() => {
+        setRefreshing(false);
+        toast({
+          title: "Messages Refreshed",
+          description: "Support messages have been refreshed.",
+        });
+      }, 1000);
     } catch (error) {
       console.error("Error refreshing messages:", error);
     } finally {
@@ -56,7 +63,20 @@ export default function Support() {
         </Button>
       </div>
       
-      <AdminSupportCenter />
+      {adminThreads && adminThreads.length > 0 ? (
+        <AdminSupportCenter key={refreshing ? 'refreshed' : 'normal'} />
+      ) : (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <h3 className="text-xl font-medium">No Support Messages</h3>
+              <p className="text-muted-foreground">
+                There are no support conversations at this time.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function AdminSupportCenter() {
-  const { adminThreads, activeThread, setActiveThread, sendMessage, markThreadAsRead, loading } = useSupport();
+  const { adminThreads, activeThread, setActiveThread, sendMessage, markThreadAsRead, loading, refreshMessages } = useSupport();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,22 +103,14 @@ export default function AdminSupportCenter() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // This will trigger the useEffect in SupportContext to fetch messages again
-      const currentActive = activeThread;
-      setActiveThread(null);
-      
-      // Small delay to ensure state updates properly
-      setTimeout(() => {
-        setActiveThread(currentActive);
-        setRefreshing(false);
-        
-        toast({
-          title: "Messages Refreshed",
-          description: "Support conversations have been refreshed",
-        });
-      }, 1000);
+      await refreshMessages();
+      toast({
+        title: "Messages Refreshed",
+        description: "Support conversations have been refreshed",
+      });
     } catch (error) {
       console.error('Error refreshing messages:', error);
+    } finally {
       setRefreshing(false);
     }
   };
@@ -245,7 +237,7 @@ export default function AdminSupportCenter() {
             
             <TabsContent value="all" className="m-0">
               <ScrollArea className="h-[400px]">
-                {adminThreads.length === 0 ? (
+                {sortedThreads.length === 0 ? (
                   <div className="px-4 py-8 text-center text-muted-foreground flex flex-col items-center gap-3">
                     <MessageSquare className="h-10 w-10 text-muted-foreground/50" />
                     <p>No support conversations found</p>

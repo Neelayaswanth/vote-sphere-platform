@@ -6,26 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Eye, EyeOff, Lock, Save, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import SupportDialog from '@/components/support/SupportDialog';
-
-const indianLanguages = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'kn', name: 'Kannada' },
-  { code: 'ml', name: 'Malayalam' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'or', name: 'Odia' }
-];
 
 export default function VoterSettings() {
   const { user, updateUser, changePassword, uploadProfileImage } = useAuth();
@@ -44,20 +28,10 @@ export default function VoterSettings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   
-  // Language settings
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [savingLanguage, setSavingLanguage] = useState(false);
-  
   useEffect(() => {
     if (user) {
       setName(user.name);
       setImagePreview(user.profileImage || null);
-    }
-    
-    // Load selected language from localStorage
-    const savedLanguage = localStorage.getItem('selectedLanguage');
-    if (savedLanguage) {
-      setSelectedLanguage(savedLanguage);
     }
   }, [user]);
   
@@ -163,31 +137,6 @@ export default function VoterSettings() {
     }
   };
   
-  const handleLanguageChange = (value: string) => {
-    setSelectedLanguage(value);
-  };
-  
-  const saveLanguagePreference = () => {
-    setSavingLanguage(true);
-    
-    try {
-      localStorage.setItem('selectedLanguage', selectedLanguage);
-      
-      toast({
-        title: "Language updated",
-        description: "Your language preference has been saved.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save language preference.",
-      });
-    } finally {
-      setSavingLanguage(false);
-    }
-  };
-  
   return (
     <div className="container max-w-4xl pb-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -201,10 +150,9 @@ export default function VoterSettings() {
       </div>
       
       <Tabs defaultValue="account" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="language">Language</TabsTrigger>
         </TabsList>
         
         <TabsContent value="account" className="space-y-6 mt-6">
@@ -361,44 +309,6 @@ export default function VoterSettings() {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="language" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Language Settings</CardTitle>
-              <CardDescription>
-                Select your preferred language for the application interface
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Select
-                  value={selectedLanguage}
-                  onValueChange={handleLanguageChange}
-                >
-                  <SelectTrigger id="language">
-                    <SelectValue placeholder="Select a language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {indianLanguages.map((language) => (
-                      <SelectItem key={language.code} value={language.code}>
-                        {language.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  This will change the language throughout the application
-                </p>
-              </div>
-              
-              <Button onClick={saveLanguagePreference} disabled={savingLanguage}>
-                {savingLanguage ? 'Saving...' : 'Save Language Preference'}
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +32,7 @@ interface SupportContextType {
   setActiveThread: (thread: SupportThread | null) => void;
   loading: boolean;
   unreadMessagesCount: number;
+  refreshMessages: () => Promise<void>;
 }
 
 const SupportContext = createContext<SupportContextType | undefined>(undefined);
@@ -236,6 +236,13 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
   
+  // Add refreshMessages function
+  const refreshMessages = async () => {
+    setLoading(true);
+    await fetchUserMessages();
+    return;
+  };
+  
   useEffect(() => {
     if (user) {
       fetchAdmins(); // Fetch all admins
@@ -366,7 +373,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     markThreadAsRead,
     setActiveThread,
     loading,
-    unreadMessagesCount
+    unreadMessagesCount,
+    refreshMessages
   };
   
   return <SupportContext.Provider value={value}>{children}</SupportContext.Provider>;
