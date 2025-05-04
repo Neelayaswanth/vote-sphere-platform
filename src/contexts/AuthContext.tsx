@@ -98,16 +98,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Setup auth state change listener
   useEffect(() => {
     console.log("Auth Provider initializing...");
     setIsLoading(true);
     
+    // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         
         if (currentSession?.user) {
+          // Use setTimeout to prevent deadlocks with Supabase's auth state management
           setTimeout(async () => {
             const userData = await fetchUserProfile(currentSession.user.id);
             
@@ -138,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log("Initial session check:", initialSession?.user?.id);
       
@@ -180,7 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       console.log("Attempting login for:", email);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -188,6 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         throw error;
       }
+      
+      console.log("Login successful:", data);
       
       toast({
         title: "Login successful",

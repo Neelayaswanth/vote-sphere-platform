@@ -21,11 +21,21 @@ const Index = () => {
     } else if (user.role === 'admin') {
       // If user is admin, redirect to admin dashboard
       navigate('/admin');
+      
+      toast({
+        title: "Admin Dashboard",
+        description: "Welcome to the admin dashboard",
+      });
     } else {
       // Otherwise, redirect to voter dashboard
       navigate('/voter');
+      
+      toast({
+        title: "Voter Dashboard",
+        description: "Welcome to your dashboard",
+      });
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, toast]);
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center">

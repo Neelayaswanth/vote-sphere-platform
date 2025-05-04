@@ -110,6 +110,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log("Fetching support messages for admin");
         
         // Get all messages - modified to include messages sent directly to specific admins
+        // and messages with null receiver_id (for backward compatibility)
         const { data, error } = await supabase
           .from('support_messages')
           .select('*')
@@ -173,7 +174,8 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const userMessages = data.filter((msg: SupportMessage) => 
               (msg.sender_id === userId && !msg.is_from_admin) || 
               (msg.receiver_id === userId && msg.is_from_admin) ||
-              (msg.is_from_admin && !msg.receiver_id && msg.sender_id === DEFAULT_ADMIN_ID)
+              (msg.is_from_admin === false && msg.sender_id === userId) ||
+              (msg.is_from_admin && !msg.receiver_id)
             );
             
             // Debug: Check if we're finding messages for this user
