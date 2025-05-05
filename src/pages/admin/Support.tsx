@@ -21,13 +21,18 @@ export default function Support() {
         await refreshMessages();
       } catch (error) {
         console.error("Error during initial message load:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load support messages. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setInitialLoading(false);
       }
     };
     
     initialLoad();
-  }, [refreshMessages]);
+  }, [refreshMessages, toast]);
   
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -60,7 +65,7 @@ export default function Support() {
   }
   
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Help & Support Center</h1>
