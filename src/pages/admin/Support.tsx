@@ -32,7 +32,6 @@ export default function Support() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Use the refreshMessages function from SupportContext
       await refreshMessages();
       
       toast({

@@ -22,9 +22,21 @@ export default function SupportDialog() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   
-  const { sendMessage, userMessages } = useSupport();
+  const { sendMessage, userMessages, refreshMessages } = useSupport();
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Ensure messages are loaded when dialog opens
+  const handleOpenChange = async (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      try {
+        await refreshMessages();
+      } catch (error) {
+        console.error('Error refreshing messages:', error);
+      }
+    }
+  };
   
   const handleSendMessage = async () => {
     if (!message.trim()) {
@@ -46,15 +58,23 @@ export default function SupportDialog() {
         title: "Message sent",
         description: "Your support request has been sent to administrators.",
       });
+      
+      // Refresh messages after sending
+      await refreshMessages();
     } catch (error) {
       console.error('Error sending support message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <HelpCircle className="h-4 w-4" />
