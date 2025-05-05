@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from './AuthContext';
@@ -53,6 +53,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [allAdmins, setAllAdmins] = useState<{id: string, name: string}[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -79,13 +80,14 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
   
-  const fetchUserMessages = async () => {
+  const fetchUserMessages = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
     
     try {
+      setLoading(true);
       // For a voter, fetch their messages (sent and received)
       if (user.role === 'voter') {
         const { data, error } = await supabase
@@ -237,27 +239,29 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
-  };
+  }, [user, toast]);
   
-  // Implement refreshMessages function
+  // Implement refreshMessages function - now using the memoized fetchUserMessages
   const refreshMessages = async () => {
-    setLoading(true);
     try {
       await fetchUserMessages();
       return Promise.resolve();
     } catch (error) {
       console.error("Error refreshing messages:", error);
       return Promise.reject(error);
-    } finally {
-      setLoading(false);
     }
   };
   
+  // Initial data load & subscription setup
   useEffect(() => {
     if (user) {
-      fetchAdmins(); // Fetch all admins
-      fetchUserMessages();
+      // Only fetch data when the component mounts for the first time
+      if (!isInitialized) {
+        fetchAdmins(); // Fetch all admins
+        fetchUserMessages();
+      }
       
       // Set up real-time subscription for new messages
       const supportChannel = supabase
@@ -281,7 +285,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setActiveThread(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, fetchUserMessages, isInitialized]);
   
   const sendMessage = async (message: string, receiverId?: string) => {
     if (!user) {

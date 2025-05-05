@@ -13,7 +13,7 @@ export default function Support() {
   const [initialLoading, setInitialLoading] = useState(true);
   const { toast } = useToast();
   
-  // Load data on mount
+  // Load data on mount - using a separate initialLoading state
   useEffect(() => {
     const initialLoad = async () => {
       try {
@@ -32,7 +32,8 @@ export default function Support() {
     };
     
     initialLoad();
-  }, [refreshMessages, toast]);
+    // Only run this effect once on component mount
+  }, []);
   
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -55,7 +56,8 @@ export default function Support() {
     }
   };
   
-  if ((loading || initialLoading) && !refreshing) {
+  // Only show loading indicator during initial load, not during refreshes
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
