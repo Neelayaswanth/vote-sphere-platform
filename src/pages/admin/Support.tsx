@@ -85,7 +85,7 @@ export default function Support() {
       </div>
       
       {adminThreads && adminThreads.length > 0 ? (
-        <AdminSupportCenter key={refreshing ? 'refreshed' : 'normal'} />
+        <AdminSupportCenter />
       ) : (
         <Card>
           <CardContent className="p-8 text-center">
