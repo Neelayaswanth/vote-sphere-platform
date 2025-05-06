@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -305,7 +306,7 @@ export default function VoterManagement() {
         </p>
       </div>
       
-      <Card className="glass-card">
+      <Card>
         <CardHeader>
           <CardTitle>Voter Accounts</CardTitle>
           <CardDescription>
@@ -369,7 +370,7 @@ export default function VoterManagement() {
           </div>
           
           <ScrollArea className="my-4">
-            <div className="rounded-md border border-white/10">
+            <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
