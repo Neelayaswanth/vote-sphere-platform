@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -25,7 +25,7 @@ export default function AdminLayout() {
   };
 
   // Refresh messages when the component mounts to get accurate unread count
-  useState(() => {
+  useEffect(() => {
     refreshMessages();
   }, [refreshMessages]);
 
