@@ -8,7 +8,7 @@ export default function VoterLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col bg-pattern-1">
       {/* Mobile header */}
       <VoterHeader setIsSidebarOpen={setIsSidebarOpen} />
 
@@ -26,8 +26,10 @@ export default function VoterLayout() {
           isMobile={false} 
         />
 
-        {/* Main content */}
-        <VoterContent />
+        {/* Main content with glass effect */}
+        <div className="flex-1 overflow-hidden glass-panel m-4 md:m-6">
+          <VoterContent />
+        </div>
       </div>
     </div>
   );

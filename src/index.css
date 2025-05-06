@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -56,6 +55,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: url('/backgrounds/bg-pattern.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
   }
 }
 
@@ -66,6 +69,23 @@
   
   .nav-link.active {
     @apply bg-primary text-primary-foreground font-medium;
+  }
+
+  .glass-panel {
+    @apply bg-white/20 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-lg shadow-lg;
+  }
+  
+  .glass-card {
+    @apply bg-white/40 dark:bg-black/40 backdrop-blur-sm border border-white/30 dark:border-white/10 rounded-lg shadow-md;
+  }
+  
+  .content-container {
+    @apply container mx-auto p-4 md:p-6 relative z-10;
+  }
+  
+  .page-container {
+    @apply min-h-screen pb-8 pt-4 md:pt-6;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.6));
   }
 }
 
@@ -112,4 +132,53 @@
 
 .animate-slide-in-right {
   animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* Background overlay for better text readability */
+.bg-overlay {
+  @apply after:content-[''] after:absolute after:inset-0 after:bg-background/50 after:z-0 relative;
+}
+
+/* New background patterns for different sections */
+.bg-pattern-1 {
+  background-image: url('/backgrounds/pattern-1.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-pattern-2 {
+  background-image: url('/backgrounds/pattern-2.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-pattern-3 {
+  background-image: url('/backgrounds/pattern-3.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.voting-container {
+  @apply container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Make cards more colorful with subtle gradients */
+.colorful-card-blue {
+  @apply glass-card;
+  background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.2) 100%);
+}
+
+.colorful-card-purple {
+  @apply glass-card;
+  background-image: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.2) 100%);
+}
+
+.colorful-card-green {
+  @apply glass-card;
+  background-image: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.2) 100%);
+}
+
+.colorful-card-amber {
+  @apply glass-card;
+  background-image: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.2) 100%);
 }

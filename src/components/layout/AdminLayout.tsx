@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const { unreadMessagesCount } = useSupport();
+  const { unreadMessagesCount, refreshMessages } = useSupport();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -23,6 +23,11 @@ export default function AdminLayout() {
     logout();
     navigate('/auth');
   };
+
+  // Refresh messages when the component mounts to get accurate unread count
+  useState(() => {
+    refreshMessages();
+  }, [refreshMessages]);
 
   const navItems = [
     { path: '/admin', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
@@ -39,9 +44,9 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-pattern-2 flex flex-col">
       {/* Mobile header */}
-      <header className="lg:hidden bg-card border-b h-16 flex items-center px-4 sticky top-0 z-30">
+      <header className="lg:hidden bg-card/80 backdrop-blur-sm border-b h-16 flex items-center px-4 sticky top-0 z-30">
         <Button
           variant="ghost"
           size="icon"
@@ -59,8 +64,8 @@ export default function AdminLayout() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar for desktop */}
-        <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
-          <div className="p-4 border-b">
+        <aside className="hidden lg:flex w-64 flex-col glass-panel m-4 mr-0">
+          <div className="p-4 border-b border-white/10">
             <h1 className="text-xl font-bold flex items-center">
               <Shield className="w-5 h-5 mr-2 text-primary" />
               VoteSphere Admin
@@ -93,7 +98,7 @@ export default function AdminLayout() {
             </nav>
           </div>
           
-          <div className="p-4 border-t flex items-center justify-between">
+          <div className="p-4 border-t border-white/10 flex items-center justify-between">
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-2">
                 <AvatarImage src={user?.profileImage} />
@@ -125,10 +130,10 @@ export default function AdminLayout() {
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:hidden transition-transform duration-300 ease-in-out`}
         >
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
           
-          <aside className="relative w-64 max-w-[80%] h-full bg-card shadow-xl flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between">
+          <aside className="relative w-64 max-w-[80%] h-full glass-panel shadow-xl flex flex-col">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <h1 className="text-xl font-bold flex items-center">
                 <Shield className="w-5 h-5 mr-2 text-primary" />
                 Admin Panel
@@ -169,7 +174,7 @@ export default function AdminLayout() {
               </nav>
             </div>
             
-            <div className="p-4 border-t flex items-center">
+            <div className="p-4 border-t border-white/10 flex items-center">
               <Avatar className="h-8 w-8 mr-2">
                 <AvatarImage src={user?.profileImage} />
                 <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
@@ -190,8 +195,8 @@ export default function AdminLayout() {
           </aside>
         </div>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        {/* Main content area with glass effect */}
+        <main className="flex-1 overflow-auto m-4 ml-0 lg:m-4 glass-panel">
           <div className="voting-container py-6 lg:py-8">
             <Outlet />
           </div>

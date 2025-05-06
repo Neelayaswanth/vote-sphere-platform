@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -190,8 +189,8 @@ export default function VoterSettings() {
         >
           <TabsContent value="account" className="space-y-6 mt-6">
             <motion.div variants={itemVariants}>
-              <Card className="overflow-hidden border border-muted/60 shadow-sm">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/30 h-32 w-full relative">
+              <Card className="colorful-card-blue overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-50/30 to-indigo-50/30 dark:from-blue-900/20 dark:to-indigo-900/30 h-32 w-full relative">
                   <div className="absolute -bottom-12 left-8">
                     <Avatar className="h-24 w-24 border-4 border-background shadow-md">
                       <AvatarImage src={imagePreview || user?.profileImage} />
@@ -267,7 +266,7 @@ export default function VoterSettings() {
           
           <TabsContent value="security" className="space-y-6 mt-6">
             <motion.div variants={itemVariants}>
-              <Card className="border border-muted/60 shadow-sm">
+              <Card className="colorful-card-purple">
                 <CardHeader>
                   <CardTitle>Change Password</CardTitle>
                   <CardDescription>
