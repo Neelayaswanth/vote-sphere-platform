@@ -10,6 +10,8 @@ export interface SupportMessage {
   receiver_id?: string;
   message: string;
   is_from_admin: boolean;
+  is_from_current_user?: boolean; // Added to identify messages from current user
+  is_delivered: boolean; // Added to track delivery status
   created_at: string;
   read: boolean;
 }
@@ -98,7 +100,14 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           
         if (error) throw error;
         
-        setUserMessages(data as SupportMessage[] || []);
+        // Process messages to add delivery status and current user info
+        const processedMessages = (data || []).map((msg: SupportMessage) => ({
+          ...msg,
+          is_from_current_user: msg.sender_id === user.id,
+          is_delivered: true // For simplicity, assume all fetched messages are delivered
+        }));
+        
+        setUserMessages(processedMessages);
         
         // Count unread messages from admins
         const unreadCount = (data || []).filter((msg: SupportMessage) => 
@@ -133,13 +142,20 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return;
         }
         
+        // Process all messages to add delivery status and current user info
+        const processedMessages = (data || []).map((msg: SupportMessage) => ({
+          ...msg,
+          is_from_current_user: msg.sender_id === user.id,
+          is_delivered: true // For simplicity, assume all fetched messages are delivered
+        }));
+        
         // Get all unique user IDs from non-admin messages (senders)
         // Plus users who received messages from admins
         const userIds = [...new Set([
-          ...data
+          ...processedMessages
             .filter((msg: SupportMessage) => !msg.is_from_admin)
             .map((msg: SupportMessage) => msg.sender_id),
-          ...data
+          ...processedMessages
             .filter((msg: SupportMessage) => msg.is_from_admin && msg.receiver_id)
             .map((msg: SupportMessage) => msg.receiver_id as string)
         ])];
@@ -173,7 +189,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
             
             // Get messages for this user (incoming and outgoing)
             // Including messages where receiver_id is NULL (for backward compatibility)
-            const userMessages = data.filter((msg: SupportMessage) => 
+            const userMessages = processedMessages.filter((msg: SupportMessage) => 
               (msg.sender_id === userId && !msg.is_from_admin) || 
               (msg.receiver_id === userId && msg.is_from_admin) ||
               (msg.is_from_admin === false && msg.sender_id === userId) ||
@@ -320,13 +336,14 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log("Voter sending to default admin:", finalReceiverId);
       }
       
-      // Create message object
+      // Create message object with delivery status
       const newMessage = {
         sender_id: user.id,
         sender_name: user.name,
         receiver_id: finalReceiverId,
         message,
         is_from_admin: user.role === 'admin',
+        is_delivered: true, // Set to true as we're simulating immediate delivery
         read: false // Set to false by default
       };
       

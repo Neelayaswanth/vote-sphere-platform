@@ -5,11 +5,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSupport, SupportMessage } from '@/contexts/SupportContext';
 import { HelpCircle, Loader2, MessageCircle, Send } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+import { MessageItem } from '@/components/support/MessageItem';
 
 export default function Support() {
-  const { userMessages, sendMessage, loading, unreadMessagesCount } = useSupport();
+  const { userMessages, sendMessage, loading, unreadMessagesCount, markMessagesAsRead } = useSupport();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -20,7 +20,12 @@ export default function Support() {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [userMessages]);
+    
+    // Mark messages as read when the component mounts
+    if (unreadMessagesCount > 0) {
+      markMessagesAsRead();
+    }
+  }, [userMessages, unreadMessagesCount, markMessagesAsRead]);
 
   // Debug logs
   useEffect(() => {
@@ -47,6 +52,13 @@ export default function Support() {
         title: "Message sent",
         description: "Your message has been sent to our support team.",
       });
+      
+      // Scroll to bottom after sending
+      if (messagesEndRef.current) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
     } catch (error) {
       console.error('Error sending support message:', error);
       toast({
@@ -56,14 +68,6 @@ export default function Support() {
       });
     } finally {
       setSending(false);
-    }
-  };
-  
-  const formatMessageDate = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch (e) {
-      return 'Unknown date';
     }
   };
   
@@ -107,23 +111,7 @@ export default function Support() {
                     ) : (
                       <div className="space-y-4">
                         {userMessages.map((message: SupportMessage) => (
-                          <div 
-                            key={message.id}
-                            className={`flex ${message.is_from_admin ? 'justify-start' : 'justify-end'}`}
-                          >
-                            <div 
-                              className={`max-w-[80%] p-3 rounded-lg ${
-                                message.is_from_admin 
-                                  ? 'bg-secondary text-secondary-foreground' 
-                                  : 'bg-primary text-primary-foreground'
-                              }`}
-                            >
-                              <p className="text-sm">{message.message}</p>
-                              <p className="text-xs opacity-70 mt-1">
-                                {formatMessageDate(message.created_at)}
-                              </p>
-                            </div>
-                          </div>
+                          <MessageItem key={message.id} message={message} />
                         ))}
                         <div ref={messagesEndRef} />
                       </div>

@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,11 @@ export function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Scroll to bottom when active thread changes or new messages arrive
-  if (messagesEndRef.current) {
-    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-  }
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeThread]);
 
   const handleSendMessage = async () => {
     if (!activeThread) {
@@ -51,6 +53,13 @@ export function ChatWindow() {
         title: "Message sent",
         description: "Your message has been sent successfully.",
       });
+      
+      // Scroll to bottom after sending
+      if (messagesEndRef.current) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
     } catch (error) {
       console.error('Error sending support message:', error);
       toast({
