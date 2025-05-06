@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +29,7 @@ interface SupportContextType {
   activeThread: SupportThread | null;
   sendMessage: (message: string, receiverId?: string) => Promise<void>;
   markThreadAsRead: (userId: string) => Promise<void>;
+  markMessagesAsRead: () => Promise<void>; // Added missing function type
   setActiveThread: (thread: SupportThread | null) => void;
   loading: boolean;
   unreadMessagesCount: number;
@@ -380,12 +380,37 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
   
+  const markMessagesAsRead = async () => {
+    if (!user || user.role !== 'voter') return;
+    
+    try {
+      // Update all unread messages sent to this user by admins
+      const { error } = await supabase
+        .from('support_messages')
+        .update({ read: true })
+        .eq('receiver_id', user.id)
+        .eq('is_from_admin', true)
+        .eq('read', false);
+        
+      if (error) throw error;
+      
+      // Refresh messages to update the UI
+      await fetchUserMessages();
+      
+      // Reset unread count
+      setUnreadMessagesCount(0);
+    } catch (error: any) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+  
   const value = {
     userMessages,
     adminThreads,
     activeThread,
     sendMessage,
     markThreadAsRead,
+    markMessagesAsRead,
     setActiveThread,
     loading,
     unreadMessagesCount,
