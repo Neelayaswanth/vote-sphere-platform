@@ -25,7 +25,7 @@ export default function SupportDialog() {
   const [sending, setSending] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   
-  const { sendMessage, userMessages, refreshMessages, unreadMessagesCount } = useSupport();
+  const { sendMessage, userMessages, refreshMessages, unreadMessagesCount, markMessagesAsRead } = useSupport();
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -37,6 +37,11 @@ export default function SupportDialog() {
         await refreshMessages();
         // Reset the scroll flag when opening
         setHasScrolled(false);
+        
+        // Mark messages as read when dialog opens
+        if (unreadMessagesCount > 0) {
+          await markMessagesAsRead();
+        }
       } catch (error) {
         console.error('Error refreshing messages:', error);
       }

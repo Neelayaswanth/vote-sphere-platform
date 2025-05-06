@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
-import { Apple, Check, Shield, UserCheck, Vote, Github, Mail } from 'lucide-react';
+import { AlertCircle, Apple, Check, Shield, UserCheck, Vote } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [socialLoginError, setSocialLoginError] = useState('');
   const navigate = useNavigate();
   const { login, signup, signInWithGoogle, signInWithApple, user } = useAuth();
   const { toast } = useToast();
@@ -32,6 +34,7 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setSocialLoginError('');
 
     try {
       if (activeTab === 'login') {
@@ -62,6 +65,7 @@ export default function Auth() {
 
   const handleSocialLogin = async (provider: 'google' | 'apple') => {
     setIsLoading(true);
+    setSocialLoginError('');
     
     try {
       if (provider === 'google') {
@@ -78,11 +82,21 @@ export default function Auth() {
         });
       }
     } catch (error: any) {
-      toast({
-        title: "Login failed",
-        description: error.message || "An error occurred during social login",
-        variant: "destructive",
-      });
+      console.error('Social login error:', error);
+      
+      // Check if it's the provider not enabled error
+      if (error.message?.includes('provider is not enabled') || 
+          error.error_code === 'validation_failed') {
+        setSocialLoginError(
+          'Social login providers are not configured. Please contact the administrator to enable them.'
+        );
+      } else {
+        toast({
+          title: "Login failed",
+          description: error.message || "An error occurred during social login",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +144,13 @@ export default function Auth() {
               </Tabs>
             </CardHeader>
             <CardContent className="relative">
+              {socialLoginError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{socialLoginError}</AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsContent value="login" className="mt-0 space-y-4">
