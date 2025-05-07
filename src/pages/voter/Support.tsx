@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,7 @@ export default function Support() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
     
-    // Mark messages as read when the component mounts
+    // Mark messages as read when the component mounts or when new messages arrive
     if (unreadMessagesCount > 0) {
       markMessagesAsRead();
     }

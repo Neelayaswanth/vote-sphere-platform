@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +10,8 @@ export interface SupportMessage {
   receiver_id?: string;
   message: string;
   is_from_admin: boolean;
-  is_from_current_user?: boolean; // Added to identify messages from current user
-  is_delivered: boolean; // Added to track delivery status
+  is_from_current_user?: boolean;
+  is_delivered: boolean;
   created_at: string;
   read: boolean;
 }
@@ -97,10 +96,14 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
   // Helper function to transform raw messages from DB to SupportMessage type
   const transformRawMessage = (msg: RawSupportMessage, currentUserId: string): SupportMessage => {
+    // For received messages, set is_delivered to true and read status from database
+    // For sent messages, we need to track if they've been read by the recipient
+    const isSentByCurrentUser = msg.sender_id === currentUserId;
+    
     return {
       ...msg,
-      is_from_current_user: msg.sender_id === currentUserId,
-      is_delivered: true // For simplicity, assume all fetched messages are delivered
+      is_from_current_user: isSentByCurrentUser,
+      is_delivered: true // All messages in the database are considered delivered
     };
   };
   
@@ -354,7 +357,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log("Voter sending to default admin:", finalReceiverId);
       }
       
-      // Create message object with delivery status
+      // Create message object
       const newMessage = {
         sender_id: user.id,
         sender_name: user.name,

@@ -11,8 +11,7 @@ export function MessageItem({ message }: MessageItemProps) {
   // Determine the message status indicator
   const renderStatusIndicator = () => {
     // Only show indicators for outgoing messages (from the current user perspective)
-    if ((message.is_from_admin && !message.is_from_current_user) || 
-        (!message.is_from_admin && message.is_from_current_user)) {
+    if (!message.is_from_current_user) {
       return null;
     }
 
@@ -28,11 +27,11 @@ export function MessageItem({ message }: MessageItemProps) {
 
   return (
     <div 
-      className={`flex ${message.is_from_admin ? 'justify-end' : 'justify-start'} mb-4`}
+      className={`flex ${message.is_from_current_user ? 'justify-end' : 'justify-start'} mb-4`}
     >
       <div 
         className={`max-w-[80%] p-3 rounded-lg ${
-          message.is_from_admin 
+          message.is_from_current_user 
             ? 'bg-primary text-primary-foreground' 
             : 'bg-secondary text-secondary-foreground'
         }`}

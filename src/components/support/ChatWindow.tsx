@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,7 @@ import { useSupport } from '@/contexts/SupportContext';
 import { MessageItem } from './MessageItem';
 
 export function ChatWindow() {
-  const { activeThread, sendMessage } = useSupport();
+  const { activeThread, sendMessage, markThreadAsRead } = useSupport();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
@@ -22,7 +21,12 @@ export function ChatWindow() {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [activeThread]);
+    
+    // Mark messages as read when thread is viewed
+    if (activeThread && activeThread.unreadCount > 0) {
+      markThreadAsRead(activeThread.userId);
+    }
+  }, [activeThread, markThreadAsRead]);
 
   const handleSendMessage = async () => {
     if (!activeThread) {
