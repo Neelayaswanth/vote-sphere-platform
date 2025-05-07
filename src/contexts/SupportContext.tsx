@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,18 @@ export interface SupportMessage {
   is_from_admin: boolean;
   is_from_current_user?: boolean; // Added to identify messages from current user
   is_delivered: boolean; // Added to track delivery status
+  created_at: string;
+  read: boolean;
+}
+
+// Define the shape of raw messages from the database
+interface RawSupportMessage {
+  id: string;
+  sender_id: string;
+  sender_name: string;
+  receiver_id?: string;
+  message: string;
+  is_from_admin: boolean;
   created_at: string;
   read: boolean;
 }
@@ -31,7 +44,7 @@ interface SupportContextType {
   activeThread: SupportThread | null;
   sendMessage: (message: string, receiverId?: string) => Promise<void>;
   markThreadAsRead: (userId: string) => Promise<void>;
-  markMessagesAsRead: () => Promise<void>; // Added missing function type
+  markMessagesAsRead: () => Promise<void>; 
   setActiveThread: (thread: SupportThread | null) => void;
   loading: boolean;
   unreadMessagesCount: number;
@@ -82,6 +95,15 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
   
+  // Helper function to transform raw messages from DB to SupportMessage type
+  const transformRawMessage = (msg: RawSupportMessage, currentUserId: string): SupportMessage => {
+    return {
+      ...msg,
+      is_from_current_user: msg.sender_id === currentUserId,
+      is_delivered: true // For simplicity, assume all fetched messages are delivered
+    };
+  };
+  
   const fetchUserMessages = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -101,16 +123,14 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (error) throw error;
         
         // Process messages to add delivery status and current user info
-        const processedMessages = (data || []).map((msg: SupportMessage) => ({
-          ...msg,
-          is_from_current_user: msg.sender_id === user.id,
-          is_delivered: true // For simplicity, assume all fetched messages are delivered
-        }));
+        const processedMessages = (data || []).map((msg: RawSupportMessage) => 
+          transformRawMessage(msg, user.id)
+        );
         
         setUserMessages(processedMessages);
         
         // Count unread messages from admins
-        const unreadCount = (data || []).filter((msg: SupportMessage) => 
+        const unreadCount = (data || []).filter((msg: RawSupportMessage) => 
           msg.is_from_admin && !msg.read && msg.receiver_id === user.id
         ).length;
         
@@ -143,11 +163,9 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         
         // Process all messages to add delivery status and current user info
-        const processedMessages = (data || []).map((msg: SupportMessage) => ({
-          ...msg,
-          is_from_current_user: msg.sender_id === user.id,
-          is_delivered: true // For simplicity, assume all fetched messages are delivered
-        }));
+        const processedMessages = (data || []).map((msg: RawSupportMessage) => 
+          transformRawMessage(msg, user.id)
+        );
         
         // Get all unique user IDs from non-admin messages (senders)
         // Plus users who received messages from admins
@@ -343,7 +361,6 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         receiver_id: finalReceiverId,
         message,
         is_from_admin: user.role === 'admin',
-        is_delivered: true, // Set to true as we're simulating immediate delivery
         read: false // Set to false by default
       };
       
