@@ -14,19 +14,21 @@ export default function Support() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-    
     // Mark messages as read when the component mounts or when new messages arrive
     if (unreadMessagesCount > 0) {
       markMessagesAsRead();
     }
-  }, [userMessages, unreadMessagesCount, markMessagesAsRead]);
+    
+    // Only auto-scroll on initial load
+    if (messagesEndRef.current && !initialScrollDone) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      setInitialScrollDone(true);
+    }
+  }, [userMessages, unreadMessagesCount, markMessagesAsRead, initialScrollDone]);
 
   // Debug logs
   useEffect(() => {

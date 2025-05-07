@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -15,18 +16,21 @@ export function ChatWindow() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   
-  // Scroll to bottom when active thread changes or new messages arrive
+  // Only scroll to bottom on initial load and when sending new messages
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-    
     // Mark messages as read when thread is viewed
     if (activeThread && activeThread.unreadCount > 0) {
       markThreadAsRead(activeThread.userId);
     }
-  }, [activeThread, markThreadAsRead]);
+    
+    // Only auto-scroll on initial load 
+    if (messagesEndRef.current && !initialScrollDone) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      setInitialScrollDone(true);
+    }
+  }, [activeThread, markThreadAsRead, initialScrollDone]);
 
   const handleSendMessage = async () => {
     if (!activeThread) {
