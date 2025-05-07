@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         
@@ -251,15 +251,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/auth`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       
       if (error) {
+        console.error("Google login error:", error);
+        toast({
+          title: "Google login failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
+      }
+      
+      // If authentication was initiated successfully, show a toast notification
+      if (data?.url) {
+        toast({
+          title: "Processing Google Login",
+          description: "Please complete the authentication in the popup window.",
+        });
+        // No need to do anything else here, as the browser will be redirected to Google
       }
     } catch (error: any) {
       console.error("Google login error:", error);
@@ -269,20 +290,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signInWithApple = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/auth`,
         }
       });
       
       if (error) {
+        console.error("Apple login error:", error);
+        toast({
+          title: "Apple login failed",
+          description: error.message,
+          variant: "destructive",
+        });
         throw error;
+      }
+      
+      // If authentication was initiated successfully, show a toast notification
+      if (data?.url) {
+        toast({
+          title: "Processing Apple Login",
+          description: "Please complete the authentication in the popup window.",
+        });
+        // No need to do anything else here, as the browser will be redirected to Apple
       }
     } catch (error: any) {
       console.error("Apple login error:", error);
@@ -292,6 +332,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

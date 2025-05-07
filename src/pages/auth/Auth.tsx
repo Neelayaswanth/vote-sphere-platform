@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +22,20 @@ export default function Auth() {
   const navigate = useNavigate();
   const { login, signup, signInWithGoogle, signInWithApple, user } = useAuth();
   const { toast } = useToast();
+
+  // Check URL for error parameters from OAuth redirect
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const errorDescription = url.searchParams.get('error_description');
+    const errorCode = url.searchParams.get('error_code');
+    
+    if (errorDescription || errorCode) {
+      setSocialLoginError(errorDescription || `Authentication error (${errorCode})`);
+      
+      // Clean the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -70,16 +83,8 @@ export default function Auth() {
     try {
       if (provider === 'google') {
         await signInWithGoogle();
-        toast({
-          title: "Processing Google Login",
-          description: "Please complete the authentication in the popup window.",
-        });
       } else if (provider === 'apple') {
         await signInWithApple();
-        toast({
-          title: "Processing Apple Login",
-          description: "Please complete the authentication in the popup window.",
-        });
       }
     } catch (error: any) {
       console.error('Social login error:', error);
