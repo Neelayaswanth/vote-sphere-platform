@@ -14,26 +14,39 @@ export default function Support() {
   const { toast } = useToast();
   
   // Load data on mount - using a separate initialLoading state
+  // This prevents the infinite loading loop
   useEffect(() => {
+    let isMounted = true; // Track component mount state
+    
     const initialLoad = async () => {
       try {
+        if (!isMounted) return; // Skip if unmounted
+        
         setInitialLoading(true);
         await refreshMessages();
       } catch (error) {
         console.error("Error during initial message load:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load support messages. Please try again.",
-          variant: "destructive"
-        });
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "Failed to load support messages. Please try again.",
+            variant: "destructive"
+          });
+        }
       } finally {
-        setInitialLoading(false);
+        if (isMounted) {
+          setInitialLoading(false);
+        }
       }
     };
     
     initialLoad();
-    // Only run this effect once on component mount
-  }, []);
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshMessages, toast]);
   
   const handleRefresh = async () => {
     setRefreshing(true);
