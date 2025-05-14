@@ -19,7 +19,12 @@ export function VoterHeader({ setIsSidebarOpen }: VoterHeaderProps) {
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
       </Button>
-      <div className="flex-1 flex justify-center">
+      <div className="flex-1 flex justify-center items-center">
+        <img 
+          src="/lovable-uploads/bf1b1ff3-12c0-47bd-a774-a5197f3a9004.png"
+          alt="VoteSphere Logo"
+          className="h-6 w-6 mr-2"
+        />
         <h1 className="text-lg font-semibold">VoteSphere</h1>
       </div>
       <DarkModeToggle />
