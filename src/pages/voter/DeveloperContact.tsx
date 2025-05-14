@@ -125,6 +125,7 @@ export default function DeveloperContact() {
                   className="rounded-full border-4 border-primary/20 shadow-xl mb-6"
                 >
                   <Avatar className="h-48 w-48">
+                    <AvatarImage src="/lovable-uploads/61814102-6073-47c0-b2bd-1fb13eeba7f0.png" alt="Sirivella Madhava" />
                     <AvatarFallback className="text-4xl">SM</AvatarFallback>
                   </Avatar>
                 </motion.div>
@@ -173,6 +174,7 @@ export default function DeveloperContact() {
                   className="rounded-full border-4 border-primary/20 shadow-xl mb-6"
                 >
                   <Avatar className="h-48 w-48">
+                    <AvatarImage src="/lovable-uploads/fe493a0a-8931-4af4-bd7e-4246e3e6859a.png" alt="Mahendra Reddy" />
                     <AvatarFallback className="text-4xl">MR</AvatarFallback>
                   </Avatar>
                 </motion.div>
