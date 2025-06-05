@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -198,10 +197,10 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const threads = await Promise.all(
           Array.from(conversationMap.entries()).map(async ([userId, messages]) => {
             try {
-              // Get user profile for the voter
+              // Get user profile for the voter - safely handle missing registration_id column
               const { data: userData, error: userError } = await supabase
                 .from('profiles')
-                .select('name, registration_id')
+                .select('name')
                 .eq('id', userId)
                 .single();
                 
@@ -212,8 +211,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
               
               // Handle case where userData might be null or undefined
               const userName = userData?.name || 'Unknown User';
-              const registrationId = userData?.registration_id || '';
-              const displayName = registrationId ? `${userName} (${registrationId})` : userName;
+              const displayName = userName; // For now, just use the name without registration_id
               
               // Sort messages by created_at
               messages.sort((a: SupportMessage, b: SupportMessage) => 
