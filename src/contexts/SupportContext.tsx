@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -207,12 +206,35 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 
               if (userError) {
                 console.error(`Error fetching user data for ${userId}:`, userError);
-                return null;
+                // Don't return null, instead use fallback data
+                const fallbackName = `User ${userId.slice(0, 8)}`;
+                
+                // Sort messages by created_at
+                messages.sort((a: SupportMessage, b: SupportMessage) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+                
+                const lastMessageObj = messages[messages.length - 1];
+                const lastMessage = lastMessageObj?.message || '';
+                const lastMessageTime = lastMessageObj?.created_at || '';
+                
+                // Count unread messages from voters (not from admins)
+                const unreadCount = messages.filter((msg: SupportMessage) => 
+                  !msg.is_from_admin && !msg.read
+                ).length;
+                
+                return {
+                  userId,
+                  userName: fallbackName,
+                  messages,
+                  lastMessage,
+                  lastMessageTime,
+                  unreadCount
+                };
               }
               
               // Handle case where userData might be null or undefined
-              const userName = userData?.name || 'Unknown User';
-              const displayName = userName; // For now, just use the name without registration_id
+              const userName = userData?.name || `User ${userId.slice(0, 8)}`;
               
               // Sort messages by created_at
               messages.sort((a: SupportMessage, b: SupportMessage) => 
@@ -228,11 +250,11 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 !msg.is_from_admin && !msg.read
               ).length;
               
-              console.log(`Thread for ${displayName}: ${messages.length} messages, ${unreadCount} unread`);
+              console.log(`Thread for ${userName}: ${messages.length} messages, ${unreadCount} unread`);
               
               return {
                 userId,
-                userName: displayName,
+                userName: userName,
                 messages,
                 lastMessage,
                 lastMessageTime,
