@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +14,7 @@ interface AppUser {
   verified: boolean;
   profileImage?: string;
   status: UserStatus;
+  registrationId?: string;
 }
 
 interface AuthContextType {
@@ -22,7 +22,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  signup: (name: string, email: string, password: string, role: UserRole, registrationId?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<AppUser>) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
@@ -91,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verified: data.verified,
         profileImage: data.profile_image,
         status,
+        registrationId: data.registration_id, // Add registration ID
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -135,7 +136,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }, 0);
         } else {
           localStorage.removeItem('user');
-          setUser(null);
           setIsLoading(false);
         }
       }
@@ -212,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (name: string, email: string, password: string, role: UserRole) => {
+  const signup = async (name: string, email: string, password: string, role: UserRole, registrationId?: string) => {
     setIsLoading(true);
     
     try {
@@ -224,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name,
             role: role || 'voter',
+            registration_id: registrationId,
           },
         },
       });
