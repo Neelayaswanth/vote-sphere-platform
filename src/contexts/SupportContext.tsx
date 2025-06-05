@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -143,8 +144,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
       else if (user.role === 'admin') {
         console.log("Fetching support messages for admin");
         
-        // Get all messages - modified to include messages sent directly to specific admins
-        // and messages with null receiver_id (for backward compatibility)
+        // Get all messages
         const { data, error } = await supabase
           .from('support_messages')
           .select('*')
@@ -170,97 +170,87 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
           transformRawMessage(msg, user.id)
         );
         
-        // Get all unique user IDs from non-admin messages (senders)
-        // Plus users who received messages from admins
-        const userIds = [...new Set([
-          ...processedMessages
-            .filter((msg: SupportMessage) => !msg.is_from_admin)
-            .map((msg: SupportMessage) => msg.sender_id),
-          ...processedMessages
-            .filter((msg: SupportMessage) => msg.is_from_admin && msg.receiver_id)
-            .map((msg: SupportMessage) => msg.receiver_id as string)
-        ])];
+        // Group messages by conversation participants
+        const conversationMap = new Map<string, SupportMessage[]>();
         
-        console.log("Unique user IDs for threads:", userIds);
-        
-        if (userIds.length === 0) {
-          console.log("No user threads found");
-          setAdminThreads([]);
-          setUnreadMessagesCount(0);
-          setLoading(false);
-          return;
-        }
-        
-        // Create threads for each user
-        const threads = await Promise.all(userIds.map(async (userId) => {
-          try {
-            // Get user name
-            const { data: userData, error: userError } = await supabase
-              .from('profiles')
-              .select('name')
-              .eq('id', userId)
-              .single();
-              
-            if (userError) {
-              console.error(`Error fetching user data for ${userId}:`, userError);
-              throw userError;
-            }
-            
-            const userName = userData?.name || 'Unknown User';
-            
-            // Get messages for this user (incoming and outgoing)
-            // Including messages where receiver_id is NULL (for backward compatibility)
-            const userMessages = processedMessages.filter((msg: SupportMessage) => 
-              (msg.sender_id === userId && !msg.is_from_admin) || 
-              (msg.receiver_id === userId && msg.is_from_admin) ||
-              (msg.is_from_admin === false && msg.sender_id === userId) ||
-              (msg.is_from_admin && !msg.receiver_id)
-            );
-            
-            // Debug: Check if we're finding messages for this user
-            console.log(`Found ${userMessages.length} messages for user ${userName} (${userId})`);
-            
-            // Sort messages by created_at
-            userMessages.sort((a: SupportMessage, b: SupportMessage) => 
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
-            
-            // Get last message
-            const lastMessageObj = userMessages[userMessages.length - 1];
-            const lastMessage = lastMessageObj?.message || '';
-            const lastMessageTime = lastMessageObj?.created_at || '';
-            
-            // Count unread messages (from non-admin users that haven't been read)
-            const unreadCount = userMessages.filter((msg: SupportMessage) => 
-              !msg.is_from_admin && !msg.read
-            ).length;
-            
-            return {
-              userId,
-              userName,
-              messages: userMessages,
-              lastMessage,
-              lastMessageTime,
-              unreadCount
-            };
-          } catch (error) {
-            console.error(`Error processing thread for user ${userId}:`, error);
-            // Return a placeholder thread object to avoid breaking the Promise.all
-            return {
-              userId,
-              userName: 'Unknown User',
-              messages: [],
-              lastMessage: '',
-              lastMessageTime: new Date().toISOString(),
-              unreadCount: 0
-            };
+        processedMessages.forEach((msg: SupportMessage) => {
+          let conversationKey: string;
+          
+          if (msg.is_from_admin) {
+            // Admin message - group by receiver_id (the voter they're talking to)
+            conversationKey = msg.receiver_id || 'general';
+          } else {
+            // Voter message - group by sender_id (the voter who sent it)
+            conversationKey = msg.sender_id;
           }
-        }));
+          
+          if (!conversationMap.has(conversationKey)) {
+            conversationMap.set(conversationKey, []);
+          }
+          conversationMap.get(conversationKey)!.push(msg);
+        });
         
-        console.log("Created threads:", threads);
+        console.log("Conversation map:", conversationMap);
         
-        // Filter out any threads that might have errors (no messages)
-        const validThreads = threads.filter(thread => thread.messages.length > 0);
+        // Create threads for each conversation
+        const threads = await Promise.all(
+          Array.from(conversationMap.entries())
+            .filter(([userId]) => userId !== 'general') // Skip general messages for now
+            .map(async ([userId, messages]) => {
+              try {
+                // Get user name
+                const { data: userData, error: userError } = await supabase
+                  .from('profiles')
+                  .select('name')
+                  .eq('id', userId)
+                  .single();
+                  
+                if (userError) {
+                  console.error(`Error fetching user data for ${userId}:`, userError);
+                  throw userError;
+                }
+                
+                const userName = userData?.name || 'Unknown User';
+                
+                // Sort messages by created_at
+                messages.sort((a: SupportMessage, b: SupportMessage) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+                
+                // Get last message
+                const lastMessageObj = messages[messages.length - 1];
+                const lastMessage = lastMessageObj?.message || '';
+                const lastMessageTime = lastMessageObj?.created_at || '';
+                
+                // Count unread messages (from non-admin users that haven't been read)
+                const unreadCount = messages.filter((msg: SupportMessage) => 
+                  !msg.is_from_admin && !msg.read
+                ).length;
+                
+                console.log(`Thread for ${userName}: ${messages.length} messages, ${unreadCount} unread`);
+                
+                return {
+                  userId,
+                  userName,
+                  messages,
+                  lastMessage,
+                  lastMessageTime,
+                  unreadCount
+                };
+              } catch (error) {
+                console.error(`Error processing thread for user ${userId}:`, error);
+                return null;
+              }
+            })
+        );
+        
+        // Filter out null threads and ensure we have valid threads
+        const validThreads = threads.filter((thread): thread is SupportThread => 
+          thread !== null && thread.messages.length > 0
+        );
+        
+        console.log("Created valid threads:", validThreads);
+        
         setAdminThreads(validThreads);
         
         // Calculate total unread messages
