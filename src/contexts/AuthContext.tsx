@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verified: data.verified,
         profileImage: data.profile_image,
         status,
-        registrationId: (data as any).registration_id || undefined, // Safely handle missing column
+        registrationId: undefined, // Will be available after migration
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);

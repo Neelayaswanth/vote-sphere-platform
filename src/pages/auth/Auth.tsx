@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,6 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { RegistrationIdField } from '@/components/auth/RegistrationIdField';
 import { validateIdFormat } from '@/utils/idGenerator';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
   const [loginEmail, setLoginEmail] = useState('');
@@ -80,23 +78,9 @@ export default function Auth() {
   };
 
   const checkRegistrationIdUnique = async (id: string): Promise<boolean> => {
-    try {
-      // Use a safe query that doesn't depend on the registration_id column existing
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
-
-      if (error) {
-        console.error('Error checking registration ID:', error);
-        return true; // Assume it's unique if we can't check
-      }
-
-      return true; // For now, assume registration IDs are unique until the column is added
-    } catch (error) {
-      console.error('Error checking registration ID uniqueness:', error);
-      return true;
-    }
+    // For now, assume registration IDs are unique until the column is added
+    // This will be properly implemented after the database migration
+    return true;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
