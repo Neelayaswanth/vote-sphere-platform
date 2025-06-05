@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,6 +210,7 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return null;
               }
               
+              // Handle case where userData might be null or undefined
               const userName = userData?.name || 'Unknown User';
               const registrationId = userData?.registration_id || '';
               const displayName = registrationId ? `${userName} (${registrationId})` : userName;

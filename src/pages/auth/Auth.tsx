@@ -27,7 +27,7 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { login, signup, signInWithGoogle, signInWithApple, user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ export default function Auth() {
   }, [user, isLoading, navigate]);
 
   const validateForm = (isSignup: boolean = false) => {
-    const newErrors: { [key: string]: string } = {};
+    const newErrors: Record<string, string> = {};
 
     if (isSignup) {
       if (!signupName.trim()) {
