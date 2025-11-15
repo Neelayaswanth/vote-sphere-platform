@@ -51,6 +51,7 @@ interface UserProfile {
     votedAt: string;
     electionTitle?: string;
   }[];
+  isOnline?: boolean;
 }
 
 const itemsPerPage = 10;
@@ -73,6 +74,18 @@ export default function Users() {
       fetchUsers();
     }
   }, [user, elections]);
+
+  // Refresh user list every 30 seconds to update online status
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(() => {
+      fetchUsers();
+    }, 30 * 1000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -151,10 +164,20 @@ export default function Users() {
         }).sort((a, b) => new Date(b.votedAt).getTime() - new Date(a.votedAt).getTime()); // Sort by most recent
 
         // Use actual_last_login from view, or last_login, or updated_at, or created_at as fallback
-        const lastActive = (profile as any).actual_last_login || 
+        const lastActive = (profile as any).last_activity || 
+                          (profile as any).last_active ||
+                          (profile as any).actual_last_login || 
                           (profile as any).last_login || 
                           profile.updated_at || 
                           profile.created_at;
+
+        // Check if user is online (active within last 10 minutes)
+        const lastActiveDate = new Date(lastActive);
+        const now = new Date();
+        const minutesSinceActive = (now.getTime() - lastActiveDate.getTime()) / (1000 * 60);
+        const isOnline = (profile as any).is_online !== undefined 
+          ? (profile as any).is_online 
+          : minutesSinceActive <= 10; // Consider online if active within last 10 minutes
 
         return {
           id: profile.id,
@@ -167,7 +190,8 @@ export default function Users() {
           status: profile.status || 'active',
           electionsParticipated: uniqueElections,
           totalVotes: userVotes.length,
-          votingHistory: votingHistory
+          votingHistory: votingHistory,
+          isOnline: isOnline
         };
       });
 
@@ -293,14 +317,23 @@ export default function Users() {
     );
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isOnline?: boolean) => {
     if (status === 'active') {
-      return (
-        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Active
-        </Badge>
-      );
+      if (isOnline) {
+        return (
+          <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Active
+          </Badge>
+        );
+      } else {
+        return (
+          <Badge variant="secondary" className="bg-gray-500 hover:bg-gray-600">
+            <XCircle className="h-3 w-3 mr-1" />
+            Offline
+          </Badge>
+        );
+      }
     }
     return (
       <Badge variant="destructive">
@@ -408,7 +441,7 @@ export default function Users() {
                               {getRoleBadge(userProfile.role)}
                             </TableCell>
                             <TableCell>
-                              {getStatusBadge(userProfile.status)}
+                              {getStatusBadge(userProfile.status, userProfile.isOnline)}
                             </TableCell>
                             <TableCell>
                               {userProfile.verified ? (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from '@supabase/supabase-js';
@@ -183,6 +183,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
+
+  // Define updateLastActive function before using it
+  const updateLastActive = useCallback(async (userId: string) => {
+    try {
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_active: new Date().toISOString()
+        })
+        .eq('id', userId);
+    } catch (error) {
+      // Non-critical error, just log it
+      console.warn('Failed to update last_active:', error);
+    }
+  }, []);
+
+  // Track user activity - update last_active periodically while user is on the site
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Update immediately when user loads
+    updateLastActive(user.id);
+
+    // Set up interval to update every 5 minutes while user is active
+    const activityInterval = setInterval(() => {
+      updateLastActive(user.id);
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Also update on user interactions (mouse movement, clicks, keyboard)
+    // Throttle activity updates to avoid too many database calls
+    let activityTimeout: NodeJS.Timeout | null = null;
+    const throttledUpdateActivity = () => {
+      if (activityTimeout) return;
+      updateLastActive(user.id);
+      activityTimeout = setTimeout(() => {
+        activityTimeout = null;
+      }, 60000); // Update max once per minute on interactions
+    };
+
+    // Listen to user interactions
+    window.addEventListener('mousemove', throttledUpdateActivity);
+    window.addEventListener('click', throttledUpdateActivity);
+    window.addEventListener('keydown', throttledUpdateActivity);
+    window.addEventListener('scroll', throttledUpdateActivity);
+
+    // Update before user leaves (page unload)
+    const handleBeforeUnload = () => {
+      updateLastActive(user.id);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(activityInterval);
+      if (activityTimeout) clearTimeout(activityTimeout);
+      window.removeEventListener('mousemove', throttledUpdateActivity);
+      window.removeEventListener('click', throttledUpdateActivity);
+      window.removeEventListener('keydown', throttledUpdateActivity);
+      window.removeEventListener('scroll', throttledUpdateActivity);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [user?.id, updateLastActive]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
