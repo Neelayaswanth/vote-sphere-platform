@@ -265,11 +265,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Define updateLastActive function before using it
   const updateLastActive = useCallback(async (userId: string) => {
     try {
+      // Use any to bypass TypeScript check since last_active column might not be in types yet
       await supabase
         .from('profiles')
         .update({ 
           last_active: new Date().toISOString()
-        })
+        } as any)
         .eq('id', userId);
     } catch (error) {
       // Non-critical error, just log it
