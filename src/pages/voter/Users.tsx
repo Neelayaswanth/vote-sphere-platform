@@ -99,6 +99,23 @@ export default function Users() {
         console.error('Error fetching votes:', votesError);
       }
 
+      // Fetch all elections to get election titles
+      const { data: electionsData, error: electionsError } = await supabase
+        .from('elections')
+        .select('id, title');
+        
+      if (electionsError) {
+        console.error('Error fetching elections:', electionsError);
+      }
+
+      // Create a map of election_id to election title
+      const electionsMap = new Map<string, string>();
+      if (electionsData) {
+        electionsData.forEach(election => {
+          electionsMap.set(election.id, election.title);
+        });
+      }
+
       // Create a map of voter_id to their votes
       const votesByUser = new Map<string, { electionId: string; votedAt: string }[]>();
       if (votesData) {
@@ -124,15 +141,13 @@ export default function Users() {
         const electionsParticipated = userVotes.map(v => v.election_id);
         const uniqueElections = Array.from(new Set(electionsParticipated));
 
-        // Map votes with election titles
-        // Get elections from context or use empty array if not available
-        const currentElections = elections || [];
+        // Map votes with election titles from the elections map
         const votingHistory = userVotes.map(vote => {
-          const election = currentElections.find(e => e.id === vote.electionId);
+          const electionTitle = electionsMap.get(vote.electionId) || 'Unknown Election';
           return {
             electionId: vote.electionId,
             votedAt: vote.votedAt,
-            electionTitle: election?.title || 'Unknown Election'
+            electionTitle: electionTitle
           };
         }).sort((a, b) => new Date(b.votedAt).getTime() - new Date(a.votedAt).getTime()); // Sort by most recent
 
