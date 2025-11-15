@@ -25,6 +25,7 @@ import VotingHistory from "./pages/voter/VotingHistory";
 import VoterSettings from "./pages/voter/VoterSettings";
 import VoterSupport from "./pages/voter/Support";
 import DeveloperContact from "./pages/voter/DeveloperContact";
+import VoterUsers from "./pages/voter/Users";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -34,6 +35,7 @@ import CreateElection from "./pages/admin/CreateElection";
 import ActivityLogs from "./pages/admin/ActivityLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminSupport from "./pages/admin/Support";
+import AdminUsers from "./pages/admin/Users";
 
 // Not found page
 import NotFound from "./pages/NotFound";
@@ -61,6 +63,7 @@ const App = () => (
                       <Route path="profile" element={<VoterProfile />} />
                       <Route path="elections" element={<ElectionsList />} />
                       <Route path="elections/:id" element={<ElectionDetail />} />
+                      <Route path="users" element={<VoterUsers />} />
                       <Route path="history" element={<VotingHistory />} />
                       <Route path="support" element={<VoterSupport />} />
                       <Route path="settings" element={<VoterSettings />} />
@@ -71,6 +74,7 @@ const App = () => (
                     <Route path="/admin" element={<AdminLayout />}>
                       <Route index element={<AdminDashboard />} />
                       <Route path="voters" element={<VoterManagement />} />
+                      <Route path="users" element={<AdminUsers />} />
                       <Route path="elections" element={<ElectionManagement />} />
                       <Route path="elections/new" element={<CreateElection />} />
                       <Route path="elections/edit/:id" element={<CreateElection />} />

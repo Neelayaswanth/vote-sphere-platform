@@ -247,12 +247,12 @@ export default function AdminSettings() {
           </p>
         </div>
       </motion.div>
-      
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
+        
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
         <div className="space-y-6 mt-6">
             <motion.div variants={itemVariants}>
               <Card className="border border-muted/60 shadow-sm overflow-hidden">
@@ -416,7 +416,7 @@ export default function AdminSettings() {
               </Card>
             </motion.div>
         </div>
-      </motion.div>
+        </motion.div>
       
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
         <AlertDialogContent className="border border-muted/60 shadow-sm">

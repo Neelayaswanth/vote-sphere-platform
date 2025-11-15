@@ -53,6 +53,7 @@ export default function AdminLayout() {
   const navItems = [
     { path: '/admin', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
     { path: '/admin/voters', label: 'Voters', icon: <Users className="w-4 h-4" /> },
+    { path: '/admin/users', label: 'Users', icon: <Users className="w-4 h-4" /> },
     { path: '/admin/elections', label: 'Elections', icon: <Vote className="w-4 h-4" /> },
     { path: '/admin/activity-logs', label: 'Activity Logs', icon: <FileText className="w-4 h-4" /> },
     { 

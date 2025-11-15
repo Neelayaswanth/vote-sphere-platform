@@ -7,6 +7,7 @@ import {
   HelpCircle,
   Settings, 
   User, 
+  Users,
   Vote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ export function VoterNavItems({ onNavigate }: VoterNavItemsProps) {
     { path: '/voter', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
     { path: '/voter/profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
     { path: '/voter/elections', label: 'Elections', icon: <Vote className="w-4 h-4" /> },
+    { path: '/voter/users', label: 'Users', icon: <Users className="w-4 h-4" /> },
     { path: '/voter/history', label: 'Voting History', icon: <Calendar className="w-4 h-4" /> },
     { path: '/voter/support', label: 'Help & Support', icon: <HelpCircle className="w-4 h-4" /> },
     { path: '/voter/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
