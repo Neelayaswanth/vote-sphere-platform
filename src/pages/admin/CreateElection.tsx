@@ -121,21 +121,44 @@ export default function CreateElection() {
   };
   
   const handleSubmit: SubmitHandler<FormValues> = async (values) => {
+    // Validate that at least one candidate is added
+    if (candidates.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one candidate before creating the election.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSaving(true);
     
     try {
       // Format dates to ISO string for API compatibility
       const electionData = {
-        title: values.title,
-        description: values.description || "",
+        title: values.title.trim(),
+        description: (values.description || "").trim(),
         startDate: values.startDate.toISOString(),
         endDate: values.endDate.toISOString(),
         // Make sure candidates have the correct shape expected by the API
-        candidates: candidates.map(candidate => ({
-          name: candidate.name,
-          description: candidate.description
-        }))
+        candidates: candidates
+          .filter(c => c.name.trim() !== '') // Filter out empty candidates
+          .map(candidate => ({
+            name: candidate.name.trim(),
+            description: (candidate.description || "").trim()
+          }))
       };
+
+      // Validate candidates after filtering
+      if (electionData.candidates.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please add at least one valid candidate with a name.",
+          variant: "destructive"
+        });
+        setSaving(false);
+        return;
+      }
       
       if (editingElectionId) {
         // Update existing election
@@ -151,7 +174,10 @@ export default function CreateElection() {
         }
       } else {
         // Create new election
+        console.log("Creating election with data:", electionData);
         const result = await createElection(electionData);
+        
+        console.log("Election creation result:", result);
         
         if (result) {
           toast({
@@ -162,11 +188,12 @@ export default function CreateElection() {
           navigate(`/admin/elections`);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving election:", error);
+      const errorMessage = error?.message || error?.error?.message || "Failed to save election. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to save election. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

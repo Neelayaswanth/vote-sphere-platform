@@ -20,34 +20,81 @@ export interface Candidate {
 
 export const createElection = async (electionData: Omit<Election, 'id' | 'candidates' | 'status' | 'totalVotes'> & { candidates: Omit<Candidate, 'id'>[] }) => {
   try {
+    // Validate required fields
+    if (!electionData.title || electionData.title.trim() === '') {
+      throw new Error('Election title is required');
+    }
+    
+    if (!electionData.startDate || !electionData.endDate) {
+      throw new Error('Start date and end date are required');
+    }
+
+    if (new Date(electionData.endDate) <= new Date(electionData.startDate)) {
+      throw new Error('End date must be after start date');
+    }
+
+    // Validate candidates
+    if (!electionData.candidates || electionData.candidates.length === 0) {
+      throw new Error('At least one candidate is required');
+    }
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      throw new Error('You must be logged in to create an election');
+    }
+
+    console.log('Creating election with user:', user.id);
+    console.log('Election data:', {
+      title: electionData.title,
+      description: electionData.description,
+      startDate: electionData.startDate,
+      endDate: electionData.endDate,
+      candidatesCount: electionData.candidates.length
+    });
+
     // Insert election data
     const { data: electionResult, error: electionError } = await supabase
       .from('elections')
       .insert({
-        title: electionData.title,
-        description: electionData.description,
+        title: electionData.title.trim(),
+        description: electionData.description || null,
         start_date: electionData.startDate,
         end_date: electionData.endDate,
-        created_by: (await supabase.auth.getUser()).data.user?.id
+        created_by: user.id,
+        active: true
       })
       .select()
       .single();
 
     if (electionError) {
       console.error('Error creating election:', electionError);
-      throw electionError;
+      throw new Error(electionError.message || 'Failed to create election');
     }
 
     if (!electionResult) {
-      throw new Error('Failed to create election');
+      throw new Error('Failed to create election - no data returned');
     }
 
-    // Insert candidates
-    const candidatesWithElectionId = electionData.candidates.map(candidate => ({
-      name: candidate.name,
-      description: candidate.description,
+    console.log('Election created successfully:', electionResult.id);
+
+    // Filter out empty candidates and insert them
+    const validCandidates = electionData.candidates.filter(c => c.name && c.name.trim() !== '');
+    
+    if (validCandidates.length === 0) {
+      // If no valid candidates, delete the election we just created
+      await supabase.from('elections').delete().eq('id', electionResult.id);
+      throw new Error('At least one valid candidate with a name is required');
+    }
+
+    const candidatesWithElectionId = validCandidates.map(candidate => ({
+      name: candidate.name.trim(),
+      description: candidate.description?.trim() || null,
       election_id: electionResult.id
     }));
+
+    console.log('Inserting candidates:', candidatesWithElectionId);
 
     const { data: candidatesResult, error: candidatesError } = await supabase
       .from('candidates')
@@ -56,14 +103,18 @@ export const createElection = async (electionData: Omit<Election, 'id' | 'candid
 
     if (candidatesError) {
       console.error('Error creating candidates:', candidatesError);
-      throw candidatesError;
+      // Delete the election if candidates insertion fails
+      await supabase.from('elections').delete().eq('id', electionResult.id);
+      throw new Error(candidatesError.message || 'Failed to create candidates');
     }
+
+    console.log('Election and candidates created successfully');
 
     return {
       ...electionResult,
       candidates: candidatesResult || []
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in createElection:', error);
     throw error;
   }
