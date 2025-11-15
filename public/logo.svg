@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#logoGrad)"/>
+  <!-- Ballot box body -->
+  <rect x="20" y="18" width="24" height="32" rx="2" fill="white" opacity="0.95"/>
+  <!-- Ballot box slot -->
+  <rect x="26" y="12" width="12" height="8" rx="1" fill="white" opacity="0.95"/>
+  <!-- Checkmark/vote mark -->
+  <path d="M 28 30 L 32 34 L 36 28" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Ballot box base -->
+  <rect x="18" y="48" width="28" height="4" rx="1" fill="white" opacity="0.9"/>
+</svg>
+

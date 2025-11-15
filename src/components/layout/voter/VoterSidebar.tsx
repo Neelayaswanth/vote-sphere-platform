@@ -41,8 +41,8 @@ export function VoterSidebar({ isSidebarOpen, setIsSidebarOpen, isMobile = false
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center">
                 <img 
-                  src="/lovable-uploads/bf1b1ff3-12c0-47bd-a774-a5197f3a9004.png"
-                  alt="VoteSphere Logo"
+                  src="/logo.svg"
+                  alt="Votefy Logo"
                   className="h-6 w-6 mr-2"
                 />
                 <h1 className="text-xl font-bold">VoteSphere</h1>
@@ -86,8 +86,8 @@ export function VoterSidebar({ isSidebarOpen, setIsSidebarOpen, isMobile = false
         <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
           <div className="p-4 border-b flex items-center">
             <img 
-              src="/lovable-uploads/bf1b1ff3-12c0-47bd-a774-a5197f3a9004.png"
-              alt="VoteSphere Logo"
+              src="/logo.svg"
+              alt="Votefy Logo"
               className="h-6 w-6 mr-2" 
             />
             <h1 className="text-xl font-bold">VoteSphere</h1>
