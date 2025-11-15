@@ -1,52 +1,49 @@
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useSupport } from '@/contexts/SupportContext';
 import { Loader2, RefreshCcw } from 'lucide-react';
 import AdminSupportCenter from '@/components/support/AdminSupportCenter';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Support() {
-  const { loading, adminThreads, refreshMessages } = useSupport();
+  const { loading, refreshMessages } = useSupport();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const { toast } = useToast();
   
-  // Load data on mount - using a separate initialLoading state
-  // This prevents the infinite loading loop
+  // Load data on mount when user is available
   useEffect(() => {
-    let isMounted = true; // Track component mount state
-    
-    const initialLoad = async () => {
-      try {
-        if (!isMounted) return; // Skip if unmounted
-        
-        setInitialLoading(true);
-        await refreshMessages();
-      } catch (error) {
-        console.error("Error during initial message load:", error);
-        if (isMounted) {
-          toast({
-            title: "Error",
-            description: "Failed to load support messages. Please try again.",
-            variant: "destructive"
+    if (user && user.role === 'admin' && !hasLoaded) {
+      // Small delay to ensure context is ready
+      const timer = setTimeout(() => {
+        refreshMessages()
+          .then(() => {
+            setHasLoaded(true);
+          })
+          .catch((error) => {
+            console.error("Error loading support messages:", error);
+            setHasLoaded(true); // Still mark as loaded to prevent infinite loading
           });
-        }
-      } finally {
-        if (isMounted) {
-          setInitialLoading(false);
-        }
-      }
-    };
-    
-    initialLoad();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshMessages, toast]);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, refreshMessages, hasLoaded]);
+  
+  // Timeout fallback to prevent infinite loading (10 seconds max)
+  useEffect(() => {
+    if (loading && user) {
+      const timeout = setTimeout(() => {
+        console.warn("Support page loading timeout - showing content anyway");
+        setHasLoaded(true);
+      }, 10000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [loading, user]);
   
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -69,8 +66,8 @@ export default function Support() {
     }
   };
   
-  // Only show loading indicator during initial load, not during refreshes
-  if (initialLoading) {
+  // Show loading indicator only if context is loading, user is available, and hasn't loaded yet
+  if (loading && user && !hasLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -99,20 +96,7 @@ export default function Support() {
         </Button>
       </div>
       
-      {adminThreads && adminThreads.length > 0 ? (
-        <AdminSupportCenter />
-      ) : (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <h3 className="text-xl font-medium">No Support Messages</h3>
-              <p className="text-muted-foreground">
-                There are no support conversations at this time.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <AdminSupportCenter />
     </div>
   );
 }

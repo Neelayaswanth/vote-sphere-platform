@@ -296,16 +296,23 @@ export const SupportProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user, toast]);
   
-  // Implement refreshMessages function - now using the memoized fetchUserMessages
-  const refreshMessages = async () => {
+  // Implement refreshMessages function - memoized to prevent infinite loops
+  const refreshMessages = useCallback(async () => {
     try {
+      // If no user, just resolve without doing anything
+      if (!user) {
+        setLoading(false);
+        return Promise.resolve();
+      }
       await fetchUserMessages();
       return Promise.resolve();
     } catch (error) {
       console.error("Error refreshing messages:", error);
-      return Promise.reject(error);
+      // Still resolve to prevent hanging, but log the error
+      setLoading(false);
+      return Promise.resolve();
     }
-  };
+  }, [user, fetchUserMessages]);
   
   // Initial data load & subscription setup
   useEffect(() => {
