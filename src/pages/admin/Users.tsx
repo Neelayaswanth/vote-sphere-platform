@@ -78,11 +78,27 @@ export default function Users() {
     setLoading(true);
     
     try {
-      // Fetch all profiles - no filters, get everything (voters and admins)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Try to use the profiles_with_login view if it exists, otherwise fallback to profiles
+      // This view includes accurate last_login from auth.users
+      let profiles, profilesError;
+      
+      try {
+        const result = await supabase
+          .from('profiles_with_login')
+          .select('*')
+          .order('created_at', { ascending: false });
+        profiles = result.data;
+        profilesError = result.error;
+      } catch (viewError) {
+        // View might not exist, fallback to profiles table
+        console.log('profiles_with_login view not found, using profiles table');
+        const result = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        profiles = result.data;
+        profilesError = result.error;
+      }
         
       if (profilesError) {
         throw profilesError;
@@ -134,6 +150,12 @@ export default function Users() {
           };
         }).sort((a, b) => new Date(b.votedAt).getTime() - new Date(a.votedAt).getTime()); // Sort by most recent
 
+        // Use actual_last_login from view, or last_login, or updated_at, or created_at as fallback
+        const lastActive = (profile as any).actual_last_login || 
+                          (profile as any).last_login || 
+                          profile.updated_at || 
+                          profile.created_at;
+
         return {
           id: profile.id,
           name: profile.name,
@@ -141,7 +163,7 @@ export default function Users() {
           verified: profile.verified,
           profileImage: profile.profile_image || undefined,
           registeredDate: profile.created_at,
-          lastActive: profile.updated_at,
+          lastActive: lastActive,
           status: profile.status || 'active',
           electionsParticipated: uniqueElections,
           totalVotes: userVotes.length,

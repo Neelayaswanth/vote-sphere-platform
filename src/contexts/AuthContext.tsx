@@ -111,6 +111,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
         
         if (currentSession?.user) {
+          // Update last_login when user signs in (SIGNED_IN event)
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            await updateLastLogin(currentSession.user.id);
+          }
+          
           // Use setTimeout to prevent deadlocks with Supabase's auth state management
           setTimeout(async () => {
             const userData = await fetchUserProfile(currentSession.user.id);
@@ -195,6 +200,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log("Login successful:", data);
       
+      // Update last_login in profiles table with actual login time
+      if (data.user?.id) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ 
+              last_login: new Date().toISOString(),
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', data.user.id);
+        } catch (updateError) {
+          // Non-critical error, just log it
+          console.warn('Failed to update last_login:', updateError);
+        }
+      }
+      
       toast({
         title: "Login successful",
         description: "Welcome back!",
@@ -247,6 +268,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateLastLogin = async (userId: string) => {
+    try {
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_login: new Date().toISOString(),
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
+    } catch (error) {
+      // Non-critical error, just log it
+      console.warn('Failed to update last_login:', error);
     }
   };
 
