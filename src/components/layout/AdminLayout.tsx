@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Button } from '@/components/ui/button';
 import { 
   BarChart3, Calendar, FileText, LogOut, Menu, MessageSquare, Settings, 
-  Shield, Users, Vote, X 
+  Shield, Users, Vote, X, Loader2
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -14,10 +14,36 @@ import { useSupport } from '@/contexts/SupportContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function AdminLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const { unreadMessagesCount } = useSupport();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Protect admin routes - redirect if not authenticated or not admin
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        navigate('/auth', { replace: true });
+      } else if (user.role !== 'admin') {
+        navigate('/voter', { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Loading...</span>
+      </div>
+    );
+  }
+
+  // Don't render admin layout if user is not authenticated or not admin
+  if (!user || user.role !== 'admin') {
+    return null;
+  }
 
   const handleLogout = () => {
     logout();

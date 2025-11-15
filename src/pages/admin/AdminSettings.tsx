@@ -65,7 +65,9 @@ export default function AdminSettings() {
   
   useEffect(() => {
     const fetchAdminAccounts = async () => {
-      if (!user || user.role !== 'admin') return;
+      if (!user || user.role !== 'admin') {
+        return;
+      }
       
       try {
         const { data, error } = await supabase
