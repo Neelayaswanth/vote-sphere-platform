@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -69,25 +69,7 @@ export default function Users() {
   const [totalPages, setTotalPages] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchUsers();
-    }
-  }, [user, elections]);
-
-  // Refresh user list every 30 seconds to update online status
-  useEffect(() => {
-    if (!user) return;
-
-    const refreshInterval = setInterval(() => {
-      fetchUsers();
-    }, 30 * 1000); // Refresh every 30 seconds
-
-    return () => clearInterval(refreshInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     
     try {
@@ -214,7 +196,24 @@ export default function Users() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [elections, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUsers();
+    }
+  }, [user, fetchUsers]);
+
+  // Refresh user list every 30 seconds to update online status
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(() => {
+      fetchUsers();
+    }, 30 * 1000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [user?.id, fetchUsers]);
 
   const filterAndPaginateUsers = (usersList?: UserProfile[]) => {
     const usersToFilter = usersList || users;
