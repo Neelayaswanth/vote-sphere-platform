@@ -1,6 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   Card, 
   CardContent, 
@@ -17,19 +18,33 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Mail, Phone, User } from 'lucide-react';
+import { Loader2, Mail, Phone, User, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function VoterProfile() {
   const { user, updateUser } = useAuth();
+  const { toast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '123-456-7890', // Mock data
-    address: '123 Main St, Anytown, USA', // Mock data
+    phone: '', // Can be added to database later if needed
+    address: '', // Can be added to database later if needed
   });
+
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: '',
+        address: '',
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -41,17 +56,22 @@ export default function VoterProfile() {
     setIsLoading(true);
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      updateUser({
+      await updateUser({
         name: formData.name,
-        email: formData.email,
       });
       
       setIsEditing(false);
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
     } catch (error) {
       console.error('Failed to update profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Failed to update profile. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -110,9 +130,15 @@ export default function VoterProfile() {
               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex justify-center gap-2">
             <Button onClick={() => setIsEditing(true)}>
               Edit Profile
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/voter/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Profile Settings
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -202,8 +228,8 @@ export default function VoterProfile() {
                       setFormData({
                         name: user?.name || '',
                         email: user?.email || '',
-                        phone: '123-456-7890',
-                        address: '123 Main St, Anytown, USA',
+                        phone: '',
+                        address: '',
                       });
                     }}
                   >
