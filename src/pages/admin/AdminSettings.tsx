@@ -7,13 +7,6 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,22 +34,8 @@ import {
   AvatarFallback, 
   AvatarImage 
 } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  Camera, 
-  Globe, 
   Loader2, 
-  Lock, 
-  Save, 
-  Settings, 
-  ShieldAlert, 
   UserPlus, 
   Users
 } from 'lucide-react';
@@ -65,32 +44,9 @@ import { UserRole } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 
-// Core Indian languages
-const indianLanguages = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'kn', name: 'Kannada' }
-];
-
 export default function AdminSettings() {
   const { toast } = useToast();
   const { user } = useAuth();
-  
-  const [platformSettings, setPlatformSettings] = useState({
-    voteTimeout: 10,
-    emailNotifications: true,
-    verificationRequired: true,
-    captchaEnabled: true,
-    maxLoginAttempts: 5,
-    sessionTimeout: 30,
-    autoLogout: true,
-    publishVotingResults: false,
-  });
   
   const [newAdmin, setNewAdmin] = useState({
     name: '',
@@ -99,7 +55,6 @@ export default function AdminSettings() {
     role: 'admin' as UserRole,
   });
   
-  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -107,14 +62,6 @@ export default function AdminSettings() {
   
   const [adminAccounts, setAdminAccounts] = useState<any[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
-  
-  const [enabledLanguages, setEnabledLanguages] = useState<Record<string, boolean>>({
-    en: true,
-    hi: true,
-    ta: true,
-    te: true,
-  });
-  const [defaultLanguage, setDefaultLanguage] = useState('en');
   
   useEffect(() => {
     const fetchAdminAccounts = async () => {
@@ -153,37 +100,6 @@ export default function AdminSettings() {
     
     fetchAdminAccounts();
   }, [user, toast]);
-  
-  const handleSettingChange = (setting: string, value: any) => {
-    setPlatformSettings(prev => ({
-      ...prev,
-      [setting]: value
-    }));
-  };
-  
-  const handleSaveSettings = async () => {
-    setIsUpdatingSettings(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      localStorage.setItem('enabledLanguages', JSON.stringify(enabledLanguages));
-      localStorage.setItem('defaultLanguage', defaultLanguage);
-      
-      toast({
-        title: "Settings Updated",
-        description: "Platform settings have been updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update settings. Please try again.",
-      });
-    } finally {
-      setIsUpdatingSettings(false);
-    }
-  };
   
   const handleNewAdminChange = (field: string, value: string) => {
     setNewAdmin(prev => ({
@@ -296,12 +212,6 @@ export default function AdminSettings() {
     }
   };
   
-  const handleLanguageToggle = (langCode: string, enabled: boolean) => {
-    setEnabledLanguages(prev => ({
-      ...prev,
-      [langCode]: enabled
-    }));
-  };
 
   // Animation variants
   const containerVariants = {
@@ -331,238 +241,17 @@ export default function AdminSettings() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
           <p className="text-muted-foreground">
-            Configure platform settings and manage admin accounts
+            Manage administrator accounts and permissions
           </p>
         </div>
       </motion.div>
       
-      <Tabs defaultValue="platform">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="platform">
-            <Settings className="mr-2 h-4 w-4" />
-            Platform Settings
-          </TabsTrigger>
-          <TabsTrigger value="admins">
-            <Users className="mr-2 h-4 w-4" />
-            Admin Accounts
-          </TabsTrigger>
-        </TabsList>
-        
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-        >
-          <TabsContent value="platform" className="space-y-6 mt-6">
-            <motion.div variants={itemVariants}>
-              <Card className="border border-muted/60 shadow-sm overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/30 h-16 w-full" />
-                <CardHeader>
-                  <CardTitle>General Platform Settings</CardTitle>
-                  <CardDescription>
-                    Configure global settings for the voting platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="vote-timeout">Vote Timeout (seconds)</Label>
-                        <Input
-                          id="vote-timeout"
-                          type="number"
-                          min="0"
-                          value={platformSettings.voteTimeout}
-                          onChange={(e) => handleSettingChange('voteTimeout', parseInt(e.target.value))}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Waiting period before vote button becomes active
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
-                        <Input
-                          id="session-timeout"
-                          type="number"
-                          min="1"
-                          value={platformSettings.sessionTimeout}
-                          onChange={(e) => handleSettingChange('sessionTimeout', parseInt(e.target.value))}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          How long before inactive sessions are logged out
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium flex items-center">
-                        <ShieldAlert className="h-5 w-5 mr-2 text-primary" />
-                        Security Settings
-                      </h3>
-                      
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <Label htmlFor="verification-required">Voter Verification Required</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Require admin verification before voting
-                            </p>
-                          </div>
-                          <Switch
-                            id="verification-required"
-                            checked={platformSettings.verificationRequired}
-                            onCheckedChange={(checked) => handleSettingChange('verificationRequired', checked)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <Label htmlFor="captcha-enabled">CAPTCHA Protection</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Enable CAPTCHA on login screens
-                            </p>
-                          </div>
-                          <Switch
-                            id="captcha-enabled"
-                            checked={platformSettings.captchaEnabled}
-                            onCheckedChange={(checked) => handleSettingChange('captchaEnabled', checked)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <Label htmlFor="auto-logout">Automatic Logout</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Automatically log out inactive users
-                            </p>
-                          </div>
-                          <Switch
-                            id="auto-logout"
-                            checked={platformSettings.autoLogout}
-                            onCheckedChange={(checked) => handleSettingChange('autoLogout', checked)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <Label htmlFor="publish-results">Publish Results</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Allow admins to publish election results
-                            </p>
-                          </div>
-                          <Switch
-                            id="publish-results"
-                            checked={platformSettings.publishVotingResults}
-                            onCheckedChange={(checked) => handleSettingChange('publishVotingResults', checked)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleSaveSettings}
-                      disabled={isUpdatingSettings}
-                      className="transition-all hover:shadow-md"
-                    >
-                      {isUpdatingSettings ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Settings
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            
-            <motion.div variants={itemVariants}>
-              <Card className="border border-muted/60 shadow-sm overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/30 h-16 w-full" />
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Globe className="mr-2 h-5 w-5 text-primary" />
-                    Languages
-                  </CardTitle>
-                  <CardDescription>
-                    Configure available languages for the platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {indianLanguages.map((language) => (
-                        <div key={language.code} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/5 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <span>{language.name}</span>
-                          </div>
-                          <Switch 
-                            checked={!!enabledLanguages[language.code]} 
-                            onCheckedChange={(checked) => handleLanguageToggle(language.code, checked)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="mt-4">
-                      <Label htmlFor="default-language">Default Language</Label>
-                      <Select 
-                        value={defaultLanguage}
-                        onValueChange={setDefaultLanguage}
-                      >
-                        <SelectTrigger id="default-language" className="mt-1.5 max-w-xs">
-                          <SelectValue placeholder="Select default language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {indianLanguages
-                            .filter(lang => !!enabledLanguages[lang.code])
-                            .map(lang => (
-                              <SelectItem key={lang.code} value={lang.code}>
-                                {lang.name}
-                              </SelectItem>
-                            ))
-                          }
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="flex justify-end mt-4">
-                      <Button 
-                        onClick={handleSaveSettings}
-                        disabled={isUpdatingSettings}
-                        className="transition-all hover:shadow-md"
-                      >
-                        {isUpdatingSettings ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Language Settings
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </TabsContent>
-          
-          <TabsContent value="admins" className="space-y-6 mt-6">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <div className="space-y-6 mt-6">
             <motion.div variants={itemVariants}>
               <Card className="border border-muted/60 shadow-sm overflow-hidden">
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/30 h-16 w-full" />
@@ -724,9 +413,8 @@ export default function AdminSettings() {
                 </CardContent>
               </Card>
             </motion.div>
-          </TabsContent>
-        </motion.div>
-      </Tabs>
+        </div>
+      </motion.div>
       
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
         <AlertDialogContent className="border border-muted/60 shadow-sm">
