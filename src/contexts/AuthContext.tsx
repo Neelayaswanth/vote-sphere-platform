@@ -99,10 +99,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Define updateLastLogin before using it in useEffect
+  const updateLastLogin = async (userId: string) => {
+    try {
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_login: new Date().toISOString(),
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
+    } catch (error) {
+      // Non-critical error, just log it
+      console.warn('Failed to update last_login:', error);
+    }
+  };
+
   // Setup auth state change listener
   useEffect(() => {
     console.log("Auth Provider initializing...");
     setIsLoading(true);
+    
+    let isInitialized = false;
+    
+    // Timeout fallback to ensure loading state is cleared (10 seconds max)
+    const loadingTimeout = setTimeout(() => {
+      if (!isInitialized) {
+        console.warn("Auth initialization timeout - clearing loading state");
+        setIsLoading(false);
+        isInitialized = true;
+      }
+    }, 10000);
     
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -113,73 +140,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentSession?.user) {
           // Update last_login when user signs in (SIGNED_IN event)
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            await updateLastLogin(currentSession.user.id);
+            updateLastLogin(currentSession.user.id).catch(err => {
+              console.warn('Failed to update last login:', err);
+            });
           }
           
           // Use setTimeout to prevent deadlocks with Supabase's auth state management
           setTimeout(async () => {
-            const userData = await fetchUserProfile(currentSession.user.id);
-            
-            if (userData) {
-              console.log("User profile fetched on auth change:", userData);
+            try {
+              const userData = await fetchUserProfile(currentSession.user.id);
               
-              const fullUserData = {
-                ...userData,
-                email: currentSession.user.email || '',
-              };
-              
-              localStorage.setItem('user', JSON.stringify(fullUserData));
-              
-              setUser(fullUserData);
-            } else {
-              console.error('Error fetching user profile on auth change');
+              if (userData) {
+                console.log("User profile fetched on auth change:", userData);
+                
+                const fullUserData = {
+                  ...userData,
+                  email: currentSession.user.email || '',
+                };
+                
+                localStorage.setItem('user', JSON.stringify(fullUserData));
+                
+                setUser(fullUserData);
+              } else {
+                console.error('Error fetching user profile on auth change');
+                setUser(null);
+                localStorage.removeItem('user');
+              }
+            } catch (error) {
+              console.error('Error in auth state change handler:', error);
               setUser(null);
               localStorage.removeItem('user');
+            } finally {
+              if (!isInitialized) {
+                clearTimeout(loadingTimeout);
+                setIsLoading(false);
+                isInitialized = true;
+              }
             }
-            
-            setIsLoading(false);
           }, 0);
         } else {
           localStorage.removeItem('user');
-          setIsLoading(false);
+          if (!isInitialized) {
+            clearTimeout(loadingTimeout);
+            setIsLoading(false);
+            isInitialized = true;
+          }
         }
       }
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log("Initial session check:", initialSession?.user?.id);
-      
-      if (initialSession?.user) {
-        setSession(initialSession);
-        
-        fetchUserProfile(initialSession.user.id).then(userData => {
-          if (userData) {
-            console.log("Initial user profile:", userData);
-            
-            const fullUserData = {
-              ...userData,
-              email: initialSession.user.email || '',
-            };
-            
-            localStorage.setItem('user', JSON.stringify(fullUserData));
-            
-            setUser(fullUserData);
-          } else {
-            console.error('Error fetching initial user profile');
-            setUser(null);
-            localStorage.removeItem('user');
-          }
-          
+    supabase.auth.getSession()
+      .then(({ data: { session: initialSession }, error }) => {
+        if (error) {
+          console.error("Error getting session:", error);
+          clearTimeout(loadingTimeout);
           setIsLoading(false);
-        });
-      } else {
-        localStorage.removeItem('user');
+          isInitialized = true;
+          return;
+        }
+        
+        console.log("Initial session check:", initialSession?.user?.id);
+        
+        if (initialSession?.user) {
+          setSession(initialSession);
+          
+          fetchUserProfile(initialSession.user.id)
+            .then(userData => {
+              if (userData) {
+                console.log("Initial user profile:", userData);
+                
+                const fullUserData = {
+                  ...userData,
+                  email: initialSession.user.email || '',
+                };
+                
+                localStorage.setItem('user', JSON.stringify(fullUserData));
+                
+                setUser(fullUserData);
+              } else {
+                console.error('Error fetching initial user profile');
+                setUser(null);
+                localStorage.removeItem('user');
+              }
+              
+              if (!isInitialized) {
+                clearTimeout(loadingTimeout);
+                setIsLoading(false);
+                isInitialized = true;
+              }
+            })
+            .catch(error => {
+              console.error('Error fetching user profile:', error);
+              setUser(null);
+              localStorage.removeItem('user');
+              if (!isInitialized) {
+                clearTimeout(loadingTimeout);
+                setIsLoading(false);
+                isInitialized = true;
+              }
+            });
+        } else {
+          localStorage.removeItem('user');
+          if (!isInitialized) {
+            clearTimeout(loadingTimeout);
+            setIsLoading(false);
+            isInitialized = true;
+          }
+        }
+      })
+      .catch(error => {
+        console.error("Error in getSession:", error);
+        clearTimeout(loadingTimeout);
         setIsLoading(false);
-      }
-    });
+        isInitialized = true;
+      });
 
     return () => {
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -329,21 +407,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const updateLastLogin = async (userId: string) => {
-    try {
-      await supabase
-        .from('profiles')
-        .update({ 
-          last_login: new Date().toISOString(),
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', userId);
-    } catch (error) {
-      // Non-critical error, just log it
-      console.warn('Failed to update last_login:', error);
     }
   };
 
