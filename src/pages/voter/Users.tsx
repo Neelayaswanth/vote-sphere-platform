@@ -73,7 +73,7 @@ export default function Users() {
     setLoading(true);
     
     try {
-      // Fetch all profiles
+      // Fetch all profiles - no filters, get everything
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -85,6 +85,7 @@ export default function Users() {
 
       if (!profiles || profiles.length === 0) {
         setUsers([]);
+        setFilteredUsers([]);
         setLoading(false);
         return;
       }
@@ -112,7 +113,7 @@ export default function Users() {
         });
       }
 
-      // Process profiles into user profiles
+      // Process ALL profiles into user profiles (both voters and admins)
       const userProfiles: UserProfile[] = profiles.map(profile => {
         const userVotes = votesByUser.get(profile.id) || [];
         const electionsParticipated = userVotes.map(v => v.election_id);
@@ -132,7 +133,9 @@ export default function Users() {
         };
       });
 
+      console.log(`Fetched ${userProfiles.length} users from database`);
       setUsers(userProfiles);
+      // Immediately filter and paginate
       filterAndPaginateUsers(userProfiles);
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -146,29 +149,37 @@ export default function Users() {
     }
   };
 
-  const filterAndPaginateUsers = (usersList: UserProfile[] = users) => {
+  const filterAndPaginateUsers = (usersList?: UserProfile[]) => {
+    const usersToFilter = usersList || users;
+    
     // Filter users based on search query
     const filtered = searchQuery 
-      ? usersList.filter(user => 
+      ? usersToFilter.filter(user => 
           user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           user.role.toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : [...usersList];
+      : [...usersToFilter];
+    
+    console.log(`Filtered to ${filtered.length} users (search: "${searchQuery}")`);
     
     // Update total pages
-    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    const pages = Math.ceil(filtered.length / itemsPerPage);
+    setTotalPages(pages || 1);
     
     // Paginate the results
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
-    setFilteredUsers(filtered.slice(start, end));
+    const paginated = filtered.slice(start, end);
+    setFilteredUsers(paginated);
+    
+    console.log(`Displaying ${paginated.length} users (page ${currentPage} of ${pages})`);
   };
 
   useEffect(() => {
     if (users.length > 0) {
       filterAndPaginateUsers();
     }
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, users]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -266,7 +277,8 @@ export default function Users() {
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              Showing {filteredUsers.length} of {users.length} users
+              Showing {searchQuery ? filteredUsers.length : users.length} of {users.length} users
+              {searchQuery && ` (filtered from ${users.length} total)`}
             </div>
           </div>
 
