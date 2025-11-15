@@ -73,27 +73,11 @@ export default function Users() {
     setLoading(true);
     
     try {
-      // Try to use the profiles_with_login view if it exists, otherwise fallback to profiles
-      // This view includes accurate last_login from auth.users
-      let profiles, profilesError;
-      
-      try {
-        const result = await supabase
-          .from('profiles_with_login')
-          .select('*')
-          .order('created_at', { ascending: false });
-        profiles = result.data;
-        profilesError = result.error;
-      } catch (viewError) {
-        // View might not exist, fallback to profiles table
-        console.log('profiles_with_login view not found, using profiles table');
-        const result = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-        profiles = result.data;
-        profilesError = result.error;
-      }
+      // Use profiles table directly (the view might not exist yet)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
         
       if (profilesError) {
         throw profilesError;
@@ -136,8 +120,10 @@ export default function Users() {
         const uniqueElections = Array.from(new Set(electionsParticipated));
 
         // Map votes with election titles
+        // Get elections from context or use empty array if not available
+        const currentElections = elections || [];
         const votingHistory = userVotes.map(vote => {
-          const election = elections.find(e => e.id === vote.electionId);
+          const election = currentElections.find(e => e.id === vote.electionId);
           return {
             electionId: vote.electionId,
             votedAt: vote.votedAt,
@@ -191,13 +177,15 @@ export default function Users() {
     } finally {
       setLoading(false);
     }
-  }, [elections, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Remove elections and toast from dependencies to prevent infinite loops
 
   useEffect(() => {
     if (user) {
       fetchUsers();
     }
-  }, [user, fetchUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   // Refresh user list every 30 seconds to update online status
   useEffect(() => {
@@ -208,7 +196,8 @@ export default function Users() {
     }, 30 * 1000); // Refresh every 30 seconds
 
     return () => clearInterval(refreshInterval);
-  }, [user?.id, fetchUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only depend on user.id
 
   const filterAndPaginateUsers = (usersList?: UserProfile[]) => {
     const usersToFilter = usersList || users;
