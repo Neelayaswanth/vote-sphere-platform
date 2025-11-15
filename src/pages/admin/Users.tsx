@@ -46,6 +46,11 @@ interface UserProfile {
   status: string;
   electionsParticipated: string[];
   totalVotes: number;
+  votingHistory: {
+    electionId: string;
+    votedAt: string;
+    electionTitle?: string;
+  }[];
 }
 
 const itemsPerPage = 10;
@@ -119,6 +124,16 @@ export default function Users() {
         const electionsParticipated = userVotes.map(v => v.election_id);
         const uniqueElections = Array.from(new Set(electionsParticipated));
 
+        // Map votes with election titles
+        const votingHistory = userVotes.map(vote => {
+          const election = elections.find(e => e.id === vote.electionId);
+          return {
+            electionId: vote.electionId,
+            votedAt: vote.votedAt,
+            electionTitle: election?.title || 'Unknown Election'
+          };
+        }).sort((a, b) => new Date(b.votedAt).getTime() - new Date(a.votedAt).getTime()); // Sort by most recent
+
         return {
           id: profile.id,
           name: profile.name,
@@ -129,7 +144,8 @@ export default function Users() {
           lastActive: profile.updated_at,
           status: profile.status || 'active',
           electionsParticipated: uniqueElections,
-          totalVotes: userVotes.length
+          totalVotes: userVotes.length,
+          votingHistory: votingHistory
         };
       });
 
@@ -200,6 +216,42 @@ export default function Users() {
     return electionIds
       .map(id => elections.find(e => e.id === id)?.title)
       .filter((title): title is string => !!title);
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+
+    if (diffInDays > 365) {
+      const years = Math.floor(diffInDays / 365);
+      return `${years} year${years > 1 ? 's' : ''} ago`;
+    } else if (diffInDays > 30) {
+      const months = Math.floor(diffInDays / 30);
+      return `${months} month${months > 1 ? 's' : ''} ago`;
+    } else if (diffInDays > 0) {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    } else if (diffInHours > 0) {
+      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    } else if (diffInMinutes > 0) {
+      return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    } else {
+      return 'Just now';
+    }
+  };
+
+  const formatFullDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getRoleBadge = (role: string) => {
@@ -293,13 +345,14 @@ export default function Users() {
                     <TableHead>Verified</TableHead>
                     <TableHead>Votes Cast</TableHead>
                     <TableHead>Elections Participated</TableHead>
+                    <TableHead>Last Login</TableHead>
                     <TableHead>Joined</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                         <p className="mt-2 text-sm text-muted-foreground">Loading users...</p>
                       </TableCell>
@@ -307,14 +360,12 @@ export default function Users() {
                   ) : (
                     filteredUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={8} className="text-center py-8">
                           <p className="text-muted-foreground">No users found.</p>
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredUsers.map(userProfile => {
-                        const electionTitles = getElectionTitles(userProfile.electionsParticipated);
-                        
                         return (
                           <TableRow key={userProfile.id}>
                             <TableCell>
@@ -326,7 +377,7 @@ export default function Users() {
                                 <div>
                                   <div className="font-medium">{userProfile.name}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    Last active: {new Date(userProfile.lastActive).toLocaleDateString()}
+                                    ID: {userProfile.id.slice(0, 8)}...
                                   </div>
                                 </div>
                               </div>
@@ -351,23 +402,35 @@ export default function Users() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2">
-                                <VoteIcon className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{userProfile.totalVotes}</span>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <VoteIcon className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{userProfile.totalVotes}</span>
+                                </div>
+                                {userProfile.votingHistory.length > 0 && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Last: {formatDate(userProfile.votingHistory[0]?.votedAt || '')}
+                                  </div>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="max-w-xs">
-                                {electionTitles.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {electionTitles.slice(0, 2).map((title, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {title}
-                                      </Badge>
+                                {userProfile.votingHistory.length > 0 ? (
+                                  <div className="flex flex-col gap-1">
+                                    {userProfile.votingHistory.slice(0, 2).map((vote, idx) => (
+                                      <div key={idx} className="flex flex-col">
+                                        <Badge variant="outline" className="text-xs w-fit">
+                                          {vote.electionTitle}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground mt-0.5">
+                                          {formatDate(vote.votedAt)}
+                                        </span>
+                                      </div>
                                     ))}
-                                    {electionTitles.length > 2 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        +{electionTitles.length - 2} more
+                                    {userProfile.votingHistory.length > 2 && (
+                                      <Badge variant="outline" className="text-xs w-fit">
+                                        +{userProfile.votingHistory.length - 2} more
                                       </Badge>
                                     )}
                                   </div>
@@ -377,9 +440,24 @@ export default function Users() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(userProfile.registeredDate).toLocaleDateString()}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1 text-sm">
+                                  <span className="text-muted-foreground">{formatDate(userProfile.lastActive)}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {formatFullDate(userProfile.lastActive)}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(userProfile.registeredDate)}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {formatFullDate(userProfile.registeredDate)}
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
